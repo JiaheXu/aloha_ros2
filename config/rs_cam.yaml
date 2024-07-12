@@ -5,9 +5,6 @@
       rgb_camera:
         profile: '640,480,60'
         enable_auto_exposure: false
-      depth_module:
-        profile: '640,480,60'
-        enable_auto_exposure: false
       enable_depth: false
       enable_infra: false
       enable_infra1: false
@@ -16,7 +13,7 @@
 $(var cam_high_name):
   camera:
     ros__parameters:
-      serial_no: ""
+      serial_no: "130322272152"
 
 $(var cam_low_name):
   camera:
@@ -26,9 +23,9 @@ $(var cam_low_name):
 $(var cam_right_wrist_name):
   camera:
     ros__parameters:
-      serial_no: ""
+      serial_no: "130322273781"
 
 $(var cam_left_wrist_name):
   camera:
     ros__parameters:
-      serial_no: ""
+      serial_no: "218722270833"
