@@ -158,6 +158,7 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_leader_left'), '/base_link'),
+            '100'
         ],
         output={'both': 'log'},
     )
@@ -176,6 +177,7 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_leader_right'), '/base_link'),
+            '100'
         ],
         output={'both': 'log'},
     )
@@ -194,6 +196,7 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_follower_left'), '/base_link'),
+            '100'
         ],
         output={'both': 'log'},
     )
@@ -212,6 +215,7 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_follower_right'), '/base_link'),
+            '100'
         ],
         output={'both': 'log'},
     )
@@ -290,10 +294,8 @@ def launch_setup(context, *args, **kwargs):
             'deadzone': 0.3,
             'autorepeat_rate': 20.0,
         }],
-        condition=AndCondition([
-            IfCondition(LaunchConfiguration('use_base')),
-            IfCondition(LaunchConfiguration('use_joystick_teleop')),
-        ]),
+        condition=IfCondition(LaunchConfiguration('use_joystick_teleop'))
+       
     )
 
     rviz2_node = Node(
@@ -474,9 +476,9 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             'use_joystick_teleop',
-            default_value=LaunchConfiguration('use_base'),
+            default_value='true',
             choices=('true', 'false'),
-            description='if `true`, launches a joystick teleop node for the base',
+            description='if `true`, launches a joystick teleop node for data collection',
         )
     )
     declared_arguments.append(

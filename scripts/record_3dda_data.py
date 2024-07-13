@@ -29,27 +29,16 @@ import cv2
 class DataCollector(Node):
 
     def __init__(self):
-        super().__init__('3dda_data_collection_node')
-
+        super().__init__('aloha_3dda_data_collection_node')
+        print("in init")
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
-        self.left_hand
         self.right_hand_frame = "follower_right/ee_gripper_link"
         self.base_frame = "world"
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.left_hand_transform = TransformStamped()
         self.right_hand_transform = TransformStamped()
-
-        # Call on_timer function every second
-        self.timer = self.create_timer(1.0, self.on_timer)
-
-        self.joystick_sub = self.create_subscription(Joy, "joy", self.joyCallback)
-
-        self.br = CvBridge()
-
-        self.subscription = self.create_subscription(Image, "img_topic", self.img_callback, 10)
-        self.br = CvBridge()
 
         #axes
         self.left_joystick_x = 0
@@ -82,7 +71,21 @@ class DataCollector(Node):
 
         # states
         self.recording = False
-    
+
+        # data
+        self.current_stack = {}
+
+        self.success_stop_pressed_last = False
+        self.failure_stop_pressed_last = False
+        
+        # Call on_timer function every second
+        self.timer_period = 0.01
+        self.timer = self.create_timer( self.timer_period, self.on_timer )
+        self.joystick_sub = self.create_subscription(Joy, "/joy", self.joyCallback,1)
+        self.br = CvBridge()
+        self.subscription = self.create_subscription(Image, "img_topic", self.img_callback, 1)
+
+
     def img_callback(self, data):
         self.get_logger().info('Receiving video frame')
         current_frame = self.br.imgmsg_to_cv2(data)
@@ -126,33 +129,44 @@ class DataCollector(Node):
                 f'Could not transform {self.base_frame} to {self.right_hand_frame}: {ex}'
             )
             return
+        # return   
+        # print("updated trans:")
+        # print("left hand: ", self.left_hand_transform)
+        # print("right hand: ", self.right_hand_transform)
 
     def joyCallback(self, msg):
-            start_recording_pressed = msg.buttons[self.triangle_button]
-            success_stop_pressed = msg.buttons[self.o_button]
-            failure_stop_pressed = msg.buttons[self.x_button]
+
+        start_recording_pressed = msg.buttons[self.triangle_button]
+        success_stop_pressed = msg.buttons[self.o_button]
+        failure_stop_pressed = msg.buttons[self.x_button]
 
 
-            if( (start_recording_pressed == True) and (self.start_recording_pressed_last == False) ):
-                if( self.recording == False ):
-                    self.recording = True
-                    self.get_logger().info('start')
+        if( (start_recording_pressed == True) and (self.start_recording_pressed_last == False) ):
+            if( self.recording == False ):
+                self.recording = True
+                self.get_logger().info('start recording!!!')
+                self.get_logger().info('start recording!!!')
+            else:
+                self.recording = True
+                self.episode_end(False)
+                self.get_logger().info('start recording!!!')
+                self.get_logger().info('start recording!!!')                
 
-            if( (success_stop_pressed == True) and (self.success_stop_pressed_last == False) ):
-                if( self.recording == True ):
-                    self.recording = False
-                    self.episode_end(True)
-                    self.get_logger().info('episode succeed!!!')
-                    self.get_logger().info('episode succeed!!!')
+        if( (success_stop_pressed == True) and (self.success_stop_pressed_last == False) ):
+            if( self.recording == True ):
+                self.recording = False
+                self.episode_end(True)
+                self.get_logger().info('episode succeed!!!')
+                self.get_logger().info('episode succeed!!!')
 
-            if( (failure_stop_pressed == True) and (self.failure_stop_pressed_last == False) ):
-                if( self.recording == True ):
-                    self.recording = False
-                    self.episode_end(False)
-                    self.get_logger().info('episode failed!!!')
-                    self.get_logger().info('episode failed!!!')
+        if( (failure_stop_pressed == True) and (self.failure_stop_pressed_last == False) ):
+            if( self.recording == True ):
+                self.recording = False
+                self.episode_end(False)
+                self.get_logger().info('episode failed!!!')
+                self.get_logger().info('episode failed!!!')
 
-            self.start_recording_pressed_last = start_recording_pressed
+        self.start_recording_pressed_last = start_recording_pressed
            
 
 def main():
@@ -166,3 +180,5 @@ def main():
         pass
 
     rclpy.shutdown()
+if __name__ == '__main__':
+    main()
