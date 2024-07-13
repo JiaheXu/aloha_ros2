@@ -16,8 +16,10 @@ from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
-from geometry_msgs.msg import PointStamped, TwistStamped, Quaternion, Vector3
+from sensor_msgs.msg import Joy
+from geometry_msgs.msg import PointStamped, TwistStamped, Quaternion, Vector3,TransformStamped
 from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, Int32
+import numpy as np 
 import time
 
 class DataCollector(Node):
@@ -27,10 +29,13 @@ class DataCollector(Node):
 
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
+        self.left_hand
         self.right_hand_frame = "follower_right/ee_gripper_link"
         self.base_frame = "world"
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.left_hand_transform = TransformStamped()
+        self.right_hand_transform = TransformStamped()
 
         # Call on_timer function every second
         self.timer = self.create_timer(1.0, self.on_timer)
@@ -45,14 +50,11 @@ class DataCollector(Node):
         self.right_joystick_x = 3
         self.right_joystick_y = 4
         self.right_trigger = 5
-        
         self.leftside_left_right_arrow = 6
         self.l = leftside_up_down_arrow = 7
 
-
         self.max_idx = 7
         
-
         # button mapping for wireless controller
         self.x_button = 0
         self.o_button = 1
@@ -61,7 +63,6 @@ class DataCollector(Node):
 
         self.l1 = 4
         self.r1 = 5
-
         self.l2 = 6
         self.r2 = 7
 
@@ -74,17 +75,43 @@ class DataCollector(Node):
         # states
         self.recording = False
     
-    def save_data()
+    def save_data(self):
         now = time.time()
+        np.save( str(now), self.current_stack)
     
-    def clean_data()
+    def clean_data(self):
         self.current_stack.clear()
 
-    def episode_end(self, success_flag)
+    def episode_end(self, success_flag):
         if( success_flag == True):
             self.save_data()
         self.clean_data()
 
+    def on_timer(self):
+        # t.transform.translation.x
+        try:
+            self.left_hand_transform = self.tf_buffer.lookup_transform(
+                self.left_hand_frame,
+                self.base_frame,
+                rclpy.time.Time()
+            )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.base_frame} to {self.left_hand_frame}: {ex}'
+            )
+            return
+
+        try:
+            self.right_hand_transform = self.tf_buffer.lookup_transform(
+                self.right_hand_frame,
+                self.base_frame,
+                rclpy.time.Time()
+            )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.base_frame} to {self.right_hand_frame}: {ex}'
+            )
+            return
 
     def joyCallback(self, msg):
             start_recording_pressed = msg.buttons[self.triangle_button]
