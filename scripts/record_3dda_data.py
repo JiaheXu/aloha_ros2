@@ -22,6 +22,10 @@ from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, I
 import numpy as np 
 import time
 
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import cv2 
+
 class DataCollector(Node):
 
     def __init__(self):
@@ -42,6 +46,10 @@ class DataCollector(Node):
 
         self.joystick_sub = self.create_subscription(Joy, "joy", self.joyCallback)
 
+        self.br = CvBridge()
+
+        self.subscription = self.create_subscription(Image, "img_topic", self.img_callback, 10)
+        self.br = CvBridge()
 
         #axes
         self.left_joystick_x = 0
@@ -75,6 +83,12 @@ class DataCollector(Node):
         # states
         self.recording = False
     
+    def img_callback(self, data):
+        self.get_logger().info('Receiving video frame')
+        current_frame = self.br.imgmsg_to_cv2(data)
+        image1_np = np.array(current_frame[:,:,0:3])
+        # update current step
+
     def save_data(self):
         now = time.time()
         np.save( str(now), self.current_stack)
