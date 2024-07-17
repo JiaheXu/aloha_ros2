@@ -158,7 +158,6 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_leader_left'), '/base_link'),
-            '100'
         ],
         output={'both': 'log'},
     )
@@ -177,7 +176,6 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_leader_right'), '/base_link'),
-            '100'
         ],
         output={'both': 'log'},
     )
@@ -196,7 +194,6 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_follower_left'), '/base_link'),
-            '100'
         ],
         output={'both': 'log'},
     )
@@ -215,7 +212,6 @@ def launch_setup(context, *args, **kwargs):
             '1.0',
             '/world',
             ('/', LaunchConfiguration('robot_name_follower_right'), '/base_link'),
-            '100'
         ],
         output={'both': 'log'},
     )
@@ -255,47 +251,50 @@ def launch_setup(context, *args, **kwargs):
     #   actions=rs_actions,
     # )
 
-    # slate_base_node = Node(
-    #     package='interbotix_slate_driver',
-    #     executable='slate_base_node',
-    #     name='slate_base',
-    #     output='screen',
-    #     namespace='mobile_base',
-    #     condition=IfCondition(LaunchConfiguration('use_base')),
-    # )
+    slate_base_node = Node(
+        package='interbotix_slate_driver',
+        executable='slate_base_node',
+        name='slate_base',
+        output='screen',
+        namespace='mobile_base',
+        condition=IfCondition(LaunchConfiguration('use_base')),
+    )
 
-    # joystick_teleop_node = Node(
-    #     package='teleop_twist_joy',
-    #     executable='teleop_node',
-    #     name='base_joystick_teleop',
-    #     namespace='mobile_base',
-    #     parameters=[
-    #         ParameterFile(
-    #             PathJoinSubstitution([
-    #                 FindPackageShare('aloha'),
-    #                 'config',
-    #                 'base_joystick_teleop.yaml'
-    #             ]),
-    #             allow_substs=True,
-    #         ),
-    #     ],
-    #     condition=AndCondition([
-    #         IfCondition(LaunchConfiguration('use_base')),
-    #         IfCondition(LaunchConfiguration('use_joystick_teleop')),
-    #     ]),
-    # )
+    joystick_teleop_node = Node(
+        package='teleop_twist_joy',
+        executable='teleop_node',
+        name='base_joystick_teleop',
+        namespace='mobile_base',
+        parameters=[
+            ParameterFile(
+                PathJoinSubstitution([
+                    FindPackageShare('aloha'),
+                    'config',
+                    'base_joystick_teleop.yaml'
+                ]),
+                allow_substs=True,
+            ),
+        ],
+        condition=AndCondition([
+            IfCondition(LaunchConfiguration('use_base')),
+            IfCondition(LaunchConfiguration('use_joystick_teleop')),
+        ]),
+    )
 
     joy_node = Node(
         package='joy',
         executable='joy_node',
         name='joy_node',
+        # namespace='mobile_base',
         parameters=[{
             'dev': '/dev/input/js0',
             'deadzone': 0.3,
             'autorepeat_rate': 20.0,
         }],
-        condition=IfCondition(LaunchConfiguration('use_joystick_teleop'))
-       
+        condition=AndCondition([
+            IfCondition(LaunchConfiguration('use_base')),
+            IfCondition(LaunchConfiguration('use_joystick_teleop')),
+        ]),
     )
 
     rviz2_node = Node(
@@ -318,6 +317,9 @@ def launch_setup(context, *args, **kwargs):
         leader_right_transform_broadcaster_node,
         follower_left_transform_broadcaster_node,
         follower_right_transform_broadcaster_node,
+        # realsense_ros_launch_includes_group_action,
+        # slate_base_node,
+        # joystick_teleop_node,
         joy_node,
         rviz2_node,
     ]
@@ -422,38 +424,38 @@ def generate_launch_description():
             ),
         )
     )
-    # declared_arguments.append(
-    #     DeclareLaunchArgument(
-    #         'use_cameras',
-    #         default_value='true',
-    #         choices=('true', 'false'),
-    #         description='if `true`, launches the camera drivers.',
-    #     )
-    # )
-    # declared_arguments.append(
-    #     DeclareLaunchArgument(
-    #         'cam_high_name',
-    #         default_value='cam_high',
-    #     )
-    # )
-    # declared_arguments.append(
-    #     DeclareLaunchArgument(
-    #         'cam_low_name',
-    #         default_value='cam_low',
-    #     )
-    # )
-    # declared_arguments.append(
-    #     DeclareLaunchArgument(
-    #         'cam_left_wrist_name',
-    #         default_value='cam_left_wrist',
-    #     )
-    # )
-    # declared_arguments.append(
-    #     DeclareLaunchArgument(
-    #         'cam_right_wrist_name',
-    #         default_value='cam_right_wrist',
-    #     )
-    # )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'use_cameras',
+            default_value='true',
+            choices=('true', 'false'),
+            description='if `true`, launches the camera drivers.',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'cam_high_name',
+            default_value='cam_high',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'cam_low_name',
+            default_value='cam_low',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'cam_left_wrist_name',
+            default_value='cam_left_wrist',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'cam_right_wrist_name',
+            default_value='cam_right_wrist',
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             'is_mobile',
@@ -476,9 +478,9 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             'use_joystick_teleop',
-            default_value='true',
+            default_value=LaunchConfiguration('use_base'),
             choices=('true', 'false'),
-            description='if `true`, launches a joystick teleop node for data collection',
+            description='if `true`, launches a joystick teleop node for the base',
         )
     )
     declared_arguments.append(

@@ -25,6 +25,10 @@ import time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2 
+from rclpy.qos import QoSProfile
+from rclpy.clock import Clock
+from message_filters import Subscriber, ApproximateTimeSynchronizer
+
 
 class DataCollector(Node):
 
@@ -34,7 +38,7 @@ class DataCollector(Node):
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
         self.right_hand_frame = "follower_right/ee_gripper_link"
-        self.base_frame = "world"
+        self.base_frame = "follower_right/base_link"
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.left_hand_transform = TransformStamped()
@@ -80,17 +84,36 @@ class DataCollector(Node):
         
         # Call on_timer function every second
         self.timer_period = 0.01
-        self.timer = self.create_timer( self.timer_period, self.on_timer )
+        # self.timer = self.create_timer( self.timer_period, self.on_timer )
         self.joystick_sub = self.create_subscription(Joy, "/joy", self.joyCallback,1)
         self.br = CvBridge()
-        self.subscription = self.create_subscription(Image, "img_topic", self.img_callback, 1)
+        # self.subscription = self.create_subscription(Image, "/camera_1/left_image", self.img_callback, 1)
+        
+        self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
+        self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
+        queue_size = 10
+        max_delay = 0.01
+        self.time_sync = ApproximateTimeSynchronizer([self.rgb_sub, self.depth_sub],
+                                                     queue_size, max_delay)
+        self.time_sync.registerCallback(self.SyncCallback)
 
+    def SyncCallback(self, rgb, depth):
+        print("rgb timestamp:", rgb.header)
+        print("depth timestamp: ", depth.header)
+        self.left_hand_transform = self.tf_buffer.lookup_transform(
+                self.left_hand_frame,
+                self.base_frame,
+                rgb.header.stamp
+            )
+        print("tf: ", self.left_hand_transform)
+        print("")
 
     def img_callback(self, data):
         self.get_logger().info('Receiving video frame')
         current_frame = self.br.imgmsg_to_cv2(data)
         image1_np = np.array(current_frame[:,:,0:3])
-        # update current step
+        # update current stepfrom rclpy.qos import QoSProfile
+    
 
     def save_data(self):
         now = time.time()
