@@ -80,7 +80,7 @@ class DataCollector(Node):
         self.recording = False
 
         # data
-        self.current_stack = {}
+        self.current_stack = []
 
         self.success_stop_pressed_last = False
         self.failure_stop_pressed_last = False
@@ -118,7 +118,7 @@ class DataCollector(Node):
         t.child_frame_id = "apriltag"
 
         t.transform.translation.x = 0.0171
-        t.transform.translation.y = 0
+        t.transform.translation.y = 0.0
         t.transform.translation.z = 0.03935
 
         t.transform.rotation.x = 0.0
@@ -130,12 +130,13 @@ class DataCollector(Node):
         self.tf_broadcaster.sendTransform(t)
     
     def SyncCallback(self, rgb, depth):
-        # print("rgb timestamp:", rgb.header)
-        # print("depth timestamp: ", depth.header)
+        print("rgb timestamp:", rgb.header)
+        print("depth timestamp: ", depth.header)
         self.left_hand_transform = self.tf_buffer.lookup_transform(
                 self.left_hand_frame,
-                self.base_frame,
-                rgb.header.stamp
+                self.left_base_frame,
+                rgb.header.stamp,
+                timeout=rclpy.duration.Duration(seconds=0.01)
             )
         x = self.left_hand_transform.transform.translation.x
         y = self.left_hand_transform.transform.translation.y
@@ -151,12 +152,12 @@ class DataCollector(Node):
         current_state["rgb"] = np.array(self.br.imgmsg_to_cv2(rgb)) # Todo check rgb order
         current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) # Todo check rgb order
 
-        print("rgb: ", current_state["rgb"].shape)
-        print("depth: ", current_state["depth"].shape)
+        # print("rgb: ", current_state["rgb"].shape)
+        # print("depth: ", current_state["depth"].shape)
 
         self.current_stack.append(current_state)
 
-        # print("tf: ", self.left_hand_transform)
+        print("tf: ", self.left_hand_transform)
         # print("")
 
     # def img_callback(self, data):
@@ -183,24 +184,24 @@ class DataCollector(Node):
         try:
             self.left_hand_transform = self.tf_buffer.lookup_transform(
                 self.left_hand_frame,
-                self.base_frame,
+                self.left_base_frame,
                 rclpy.time.Time()
             )
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform {self.base_frame} to {self.left_hand_frame}: {ex}'
+                f'Could not transform {self.left_base_frame} to {self.left_hand_frame}: {ex}'
             )
             return
 
         try:
             self.right_hand_transform = self.tf_buffer.lookup_transform(
                 self.right_hand_frame,
-                self.base_frame,
+                self.right_base_frame,
                 rclpy.time.Time()
             )
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform {self.base_frame} to {self.right_hand_frame}: {ex}'
+                f'Could not transform {self.right_base_frame} to {self.right_hand_frame}: {ex}'
             )
             return
         # return   
@@ -219,29 +220,30 @@ class DataCollector(Node):
             if( self.recording == False ):
                 self.recording = True
                 self.get_logger().info('start recording!!!')
-                self.get_logger().info('start recording!!!')
+                # self.get_logger().info('start recording!!!')
             else:
                 self.recording = True
                 self.episode_end(False)
                 self.get_logger().info('start recording!!!')
-                self.get_logger().info('start recording!!!')                
+                # self.get_logger().info('start recording!!!')                
 
         if( (success_stop_pressed == True) and (self.success_stop_pressed_last == False) ):
             if( self.recording == True ):
                 self.recording = False
                 self.episode_end(True)
                 self.get_logger().info('episode succeed!!!')
-                self.get_logger().info('episode succeed!!!')
+                # self.get_logger().info('episode succeed!!!')
 
         if( (failure_stop_pressed == True) and (self.failure_stop_pressed_last == False) ):
             if( self.recording == True ):
                 self.recording = False
                 self.episode_end(False)
                 self.get_logger().info('episode failed!!!')
-                self.get_logger().info('episode failed!!!')
+                # self.get_logger().info('episode failed!!!')
 
         self.start_recording_pressed_last = start_recording_pressed
-           
+        self.success_stop_pressed_last = success_stop_pressed           
+        self.failure_stop_pressed_last = failure_stop_pressed
 
 def main():
 

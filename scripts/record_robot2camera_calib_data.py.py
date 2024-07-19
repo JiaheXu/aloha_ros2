@@ -118,7 +118,7 @@ class DataCollector(Node):
         t.child_frame_id = "apriltag"
 
         t.transform.translation.x = 0.0171
-        t.transform.translation.y = 0
+        t.transform.translation.y = 0.0
         t.transform.translation.z = 0.03935
 
         t.transform.rotation.x = 0.0
@@ -134,7 +134,7 @@ class DataCollector(Node):
         # print("depth timestamp: ", depth.header)
         self.left_hand_transform = self.tf_buffer.lookup_transform(
                 self.left_hand_frame,
-                self.base_frame,
+                self.left_base_frame,
                 rgb.header.stamp
             )
         x = self.left_hand_transform.transform.translation.x
@@ -219,29 +219,30 @@ class DataCollector(Node):
             if( self.recording == False ):
                 self.recording = True
                 self.get_logger().info('start recording!!!')
-                self.get_logger().info('start recording!!!')
+                # self.get_logger().info('start recording!!!')
             else:
                 self.recording = True
                 self.episode_end(False)
                 self.get_logger().info('start recording!!!')
-                self.get_logger().info('start recording!!!')                
+                # self.get_logger().info('start recording!!!')                
 
         if( (success_stop_pressed == True) and (self.success_stop_pressed_last == False) ):
             if( self.recording == True ):
                 self.recording = False
                 self.episode_end(True)
                 self.get_logger().info('episode succeed!!!')
-                self.get_logger().info('episode succeed!!!')
+                # self.get_logger().info('episode succeed!!!')
 
         if( (failure_stop_pressed == True) and (self.failure_stop_pressed_last == False) ):
             if( self.recording == True ):
                 self.recording = False
                 self.episode_end(False)
                 self.get_logger().info('episode failed!!!')
-                self.get_logger().info('episode failed!!!')
+                # self.get_logger().info('episode failed!!!')
 
         self.start_recording_pressed_last = start_recording_pressed
-           
+        self.success_stop_pressed_last = success_stop_pressed           
+        self.failure_stop_pressed_last = failure_stop_pressed
 
 def main():
 

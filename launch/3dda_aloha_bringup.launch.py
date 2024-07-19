@@ -290,11 +290,7 @@ def launch_setup(context, *args, **kwargs):
             'dev': '/dev/input/js0',
             'deadzone': 0.3,
             'autorepeat_rate': 20.0,
-        }],
-        condition=AndCondition([
-            IfCondition(LaunchConfiguration('use_base')),
-            IfCondition(LaunchConfiguration('use_joystick_teleop')),
-        ]),
+        }]
     )
 
     rviz2_node = Node(
