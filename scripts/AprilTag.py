@@ -55,10 +55,14 @@ class DataCollector(Node):
         self.left_base_frame = "follower_left/base_link"
         self.right_base_frame = "follower_right/base_link"
 
+        self.base_frame = "follower_right/base_link"
+        self.tag_frame = "apriltag"
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.left_hand_transform = TransformStamped()
         self.right_hand_transform = TransformStamped()
+        self.hand_transform = TransformStamped()
 
         #axes
         self.left_joystick_x = 0
@@ -109,12 +113,12 @@ class DataCollector(Node):
         )
         # Camera Instrinsics used for Undistorting the Fisheye Images
         self.DIM=(1080, 1920)
-        self.K=np.array([[738.52671777, 0., 959.40116984], [0. ,739.11251938,  575.51338683], [0.0, 0.0, 1.0]])
+        self.K=np.array([[734.1779174804688, 0., 993.6226806640625], [0. ,734.1779174804688,  551.8895874023438], [0.0, 0.0, 1.0]])
         self.D=np.array([0.0, 0.0, 0.0, 0.0])
 
 
         self.odom=Odometry()
-        self.odom_pub = self.create_publisher(Odometry, "AprilTagOdom", 1)
+        self.tag_odom_pub = self.create_publisher(Odometry, "AprilTagOdom", 1)
         
         self.cam_odom=Odometry()
         self.global_cam_pub = self.create_publisher(Odometry, "CamOdom", 1)
@@ -164,21 +168,43 @@ class DataCollector(Node):
         self.tf_broadcaster.sendTransform(t)
     
     def RgbCallback(self, rgb):
+        try:
+            self.hand_transform = self.tf_buffer.lookup_transform(
+                    self.tag_frame,
+                    self.base_frame,
+                    rgb.header.stamp
+            )
+        
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.base_frame} to {self.tag_frame}: {ex}'
+            )
+            return
+        # print("in call backs")
+        x = self.hand_transform.transform.translation.x
+        y = self.hand_transform.transform.translation.y
+        z = self.hand_transform.transform.translation.z
+
+        qx = self.hand_transform.transform.rotation.x
+        qy = self.hand_transform.transform.rotation.y
+        qz = self.hand_transform.transform.rotation.z
+        qw = self.hand_transform.transform.rotation.w
+
         cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.155) 
+        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.06) 
         if result: 
             # print("*****************************************************************************************")
             # print(result)
             for tag in result: 
-                if(tag.tag_id):  
+                if(tag.tag_id==0):  
                     timestamp = self.get_clock().now().to_msg()
 
                     original_estimated_rot = tag.pose_R 
                     original_estimated_trans = tag.pose_t
                     original_estimated_rot =   tag.pose_R @ aprilTag_R
                     rot = Rotation.from_matrix(original_estimated_rot)
-                    odom_quat = rot.as_quat()
+                    tag_odom_quat = rot.as_quat()
 
                     point = Point()
                     point.x = float(original_estimated_trans[0])
@@ -186,14 +212,14 @@ class DataCollector(Node):
                     point.z = float(original_estimated_trans[2])
                     self.odom.pose.pose.position = point
                     
-                    self.odom.pose.pose.orientation.x=odom_quat[0]
-                    self.odom.pose.pose.orientation.y=odom_quat[1]
-                    self.odom.pose.pose.orientation.z=odom_quat[2]
-                    self.odom.pose.pose.orientation.w=odom_quat[3]
+                    self.odom.pose.pose.orientation.x=tag_odom_quat[0]
+                    self.odom.pose.pose.orientation.y=tag_odom_quat[1]
+                    self.odom.pose.pose.orientation.z=tag_odom_quat[2]
+                    self.odom.pose.pose.orientation.w=tag_odom_quat[3]
                     
                     self.odom.header.stamp=timestamp
                     self.odom.header.frame_id="map"
-                    self.odom_pub.publish(self.odom)
+                    self.tag_odom_pub.publish(self.odom)
 
                     
                     global_cam_rot = original_estimated_rot.transpose()
@@ -218,11 +244,22 @@ class DataCollector(Node):
                     self.cam_odom.header.frame_id="map"
                     self.global_cam_pub.publish(self.cam_odom)
 
+                    current_state = {}
+                    current_state["base_tag"] = np.array([x, y, z, qx, qy, qz, qw])
+                    current_state["camera_tag"] = np.array([
+                        point.x, point.y, point.z,
+                        tag_odom_quat[0], tag_odom_quat[1], tag_odom_quat[2], tag_odom_quat[3]
+                    ])
 
+                    if( self.recording == True ):
+                        self.current_stack.append(current_state)
     
 
     def save_data(self):
         now = time.time()
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
         np.save( str(now), self.current_stack)
     
     def clean_data(self):
