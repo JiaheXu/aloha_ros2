@@ -55,8 +55,10 @@ class DataCollector(Node):
         self.left_base_frame = "follower_left/base_link"
         self.right_base_frame = "follower_right/base_link"
 
-        self.base_frame = "follower_right/base_link"
+        self.base_frame = "follower_left/base_link"
         self.tag_frame = "apriltag"
+
+        self.last_data_time = time.time()
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -152,7 +154,7 @@ class DataCollector(Node):
         # # Read message content and assign it to
         # # corresponding tf variables
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'follower_right/gripper_link'
+        t.header.frame_id = 'follower_left/gripper_link'
         t.child_frame_id = "apriltag"
 
         t.transform.translation.x = 0.0171
@@ -170,17 +172,23 @@ class DataCollector(Node):
     def RgbCallback(self, rgb):
         try:
             self.hand_transform = self.tf_buffer.lookup_transform(
-                    self.tag_frame,
                     self.base_frame,
+                    self.tag_frame,
                     rgb.header.stamp
             )
         
         except TransformException as ex:
-            self.get_logger().info(
-                f'Could not transform {self.base_frame} to {self.tag_frame}: {ex}'
-            )
+            # self.get_logger().info(
+            #     f'Could not transform {self.base_frame} to {self.tag_frame}: {ex}'
+            # )
             return
-        # print("in call backs")
+
+        data_time = time.time()
+        if(data_time - self.last_data_time < 0.5):
+            return
+
+        print("in call backs")
+        # print("base frame: ", self.hand_transform)
         x = self.hand_transform.transform.translation.x
         y = self.hand_transform.transform.translation.y
         z = self.hand_transform.transform.translation.z
@@ -192,6 +200,7 @@ class DataCollector(Node):
 
         cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        #print("image size: ", gray_image.shape)
         result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.06) 
         if result: 
             # print("*****************************************************************************************")
@@ -199,6 +208,8 @@ class DataCollector(Node):
             for tag in result: 
                 if(tag.tag_id==0):  
                     timestamp = self.get_clock().now().to_msg()
+                    
+                    
 
                     original_estimated_rot = tag.pose_R 
                     original_estimated_trans = tag.pose_t
@@ -225,8 +236,8 @@ class DataCollector(Node):
                     global_cam_rot = original_estimated_rot.transpose()
                     global_cam_trans = -1.0*global_cam_rot@original_estimated_trans
 
-                    print("trans: ", global_cam_trans)
-                    print("rot (x y z w): \n", self.odom.pose.pose.orientation)
+                    # print("trans: ", point.x, point.y, point.z)
+                    # print("rot (x y z w): \n", self.odom.pose.pose.orientation)
 
                     rot = Rotation.from_matrix(global_cam_rot)
                     odom_quat = rot.as_quat()
@@ -253,7 +264,11 @@ class DataCollector(Node):
 
                     if( self.recording == True ):
                         self.current_stack.append(current_state)
-    
+                        self.last_data_time = data_time
+                        self.recording = False
+                        print("added data!!!!!!!!")
+                        print("added data!!!!!!!!")
+                        print("added data!!!!!!!!")   
 
     def save_data(self):
         now = time.time()
@@ -308,29 +323,29 @@ class DataCollector(Node):
 
 
         if( (start_recording_pressed == True) and (self.start_recording_pressed_last == False) ):
-            if( self.recording == False ):
-                self.recording = True
-                self.get_logger().info('start recording!!!')
-                # self.get_logger().info('start recording!!!')
-            else:
-                self.recording = True
-                self.episode_end(False)
-                self.get_logger().info('start recording!!!')
-                # self.get_logger().info('start recording!!!')                
+            # if( self.recording == False ):
+            self.recording = True
+            self.get_logger().info('adding data!!!')
+            #     # self.get_logger().info('start recording!!!')
+            # else:
+            #     self.recording = True
+            #     self.episode_end(False)
+            #     self.get_logger().info('start recording!!!')
+            #     # self.get_logger().info('start recording!!!')                
 
         if( (success_stop_pressed == True) and (self.success_stop_pressed_last == False) ):
-            if( self.recording == True ):
-                self.recording = False
-                self.episode_end(True)
-                self.get_logger().info('episode succeed!!!')
-                # self.get_logger().info('episode succeed!!!')
+            # if( self.recording == True ):
+            self.recording = False
+            self.episode_end(True)
+            self.get_logger().info('episode succeed!!!')
+            # self.get_logger().info('episode succeed!!!')
 
         if( (failure_stop_pressed == True) and (self.failure_stop_pressed_last == False) ):
-            if( self.recording == True ):
-                self.recording = False
-                self.episode_end(False)
-                self.get_logger().info('episode failed!!!')
-                # self.get_logger().info('episode failed!!!')
+            # if( self.recording == True ):
+            self.recording = False
+            self.episode_end(False)
+            self.get_logger().info('episode failed!!!')
+            # self.get_logger().info('episode failed!!!')
 
         self.start_recording_pressed_last = start_recording_pressed
         self.success_stop_pressed_last = success_stop_pressed           
