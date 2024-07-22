@@ -180,41 +180,41 @@ def launch_setup(context, *args, **kwargs):
         output={'both': 'log'},
     )
 
-    follower_left_transform_broadcaster_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='follower_left_transform_broadcaster',
-        arguments=[
-            '0.5',
-            '0.25',
-            '0.0',
-            '0.0',
-            '0.0',
-            '0.0',
-            '1.0',
-            '/world',
-            ('/', LaunchConfiguration('robot_name_follower_left'), '/base_link'),
-        ],
-        output={'both': 'log'},
-    )
+    # follower_left_transform_broadcaster_node = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='follower_left_transform_broadcaster',
+    #     arguments=[
+    #         '0.5',
+    #         '0.25',
+    #         '0.0',
+    #         '0.0',
+    #         '0.0',
+    #         '0.0',
+    #         '1.0',
+    #         '/world',
+    #         ('/', LaunchConfiguration('robot_name_follower_left'), '/base_link'),
+    #     ],
+    #     output={'both': 'log'},
+    # )
 
-    follower_right_transform_broadcaster_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='follower_right_transform_broadcaster',
-        arguments=[
-            '0.5',
-            '-0.25',
-            '0.0',
-            '0.0',
-            '0.0',
-            '0.0',
-            '1.0',
-            '/world',
-            ('/', LaunchConfiguration('robot_name_follower_right'), '/base_link'),
-        ],
-        output={'both': 'log'},
-    )
+    # follower_right_transform_broadcaster_node = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='follower_right_transform_broadcaster',
+    #     arguments=[
+    #         '0.5',
+    #         '-0.25',
+    #         '0.0',
+    #         '0.0',
+    #         '0.0',
+    #         '0.0',
+    #         '1.0',
+    #         '/world',
+    #         ('/', LaunchConfiguration('robot_name_follower_right'), '/base_link'),
+    #     ],
+    #     output={'both': 'log'},
+    # )
 
     # rs_actions = []
     # mobile_cams = [
@@ -311,8 +311,8 @@ def launch_setup(context, *args, **kwargs):
         xsarm_control_follower_right_launch_include,
         leader_left_transform_broadcaster_node,
         leader_right_transform_broadcaster_node,
-        follower_left_transform_broadcaster_node,
-        follower_right_transform_broadcaster_node,
+        # follower_left_transform_broadcaster_node,
+        # follower_right_transform_broadcaster_node,
         # realsense_ros_launch_includes_group_action,
         # slate_base_node,
         # joystick_teleop_node,

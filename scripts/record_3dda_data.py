@@ -109,26 +109,51 @@ class DataCollector(Node):
         self.timer = self.create_timer(timer_period, self.publish_tf)
     
     def publish_tf(self):
-        t = TransformStamped()
-
+        left_t = TransformStamped()
+        right_t = TransformStamped()
+        master_cam_t = TransformStamped()
         # # Read message content and assign it to
         # # corresponding tf variables
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'follower_right/gripper_link'
-        t.child_frame_id = "apriltag"
+        ros_time = self.get_clock().now()
+        left_t.header.stamp = ros_time.to_msg()
+        right_t.header.stamp = ros_time.to_msg()
+        master_cam_t.header.stamp = ros_time.to_msg()
 
-        t.transform.translation.x = 0.0171
-        t.transform.translation.y = 0.0
-        t.transform.translation.z = 0.03935
+        left_t.header.frame_id = 'world'
+        left_t.child_frame_id = "follower_left/base_link"
+        left_t.transform.translation.x = 0.0
+        left_t.transform.translation.y = -0.315
+        left_t.transform.translation.z = 0.0
+        left_t.transform.rotation.x = 0.0
+        left_t.transform.rotation.y = 0.0
+        left_t.transform.rotation.z = 0.0
+        left_t.transform.rotation.w = 1.0
 
-        t.transform.rotation.x = 0.0
-        t.transform.rotation.y = 0.0
-        t.transform.rotation.z = 0.0
-        t.transform.rotation.w = 1.0
+        right_t.header.frame_id = 'world'
+        right_t.child_frame_id = "follower_right/base_link"
+        right_t.transform.translation.x = 0.0
+        right_t.transform.translation.y = 0.315
+        right_t.transform.translation.z = 0.0
+        right_t.transform.rotation.x = 0.0
+        right_t.transform.rotation.y = 0.0
+        right_t.transform.rotation.z = 0.0
+        right_t.transform.rotation.w = 1.0
+
+        master_cam_t.header.frame_id = 'world'
+        master_cam_t.child_frame_id = "master_cam"
+        master_cam_t.transform.translation.x = -0.13913296
+        master_cam_t.transform.translation.y = 0.053
+        master_cam_t.transform.translation.z = 0.43643044
+        master_cam_t.transform.rotation.x = -0.63127772
+        master_cam_t.transform.rotation.y = 0.64917582
+        master_cam_t.transform.rotation.z = -0.31329509
+        master_cam_t.transform.rotation.w = 0.28619116
 
         # # Send the transformation
-        self.tf_broadcaster.sendTransform(t)
-    
+        self.tf_broadcaster.sendTransform(left_t)
+        self.tf_broadcaster.sendTransform(right_t)
+        self.tf_broadcaster.sendTransform(master_cam_t)
+
     def SyncCallback(self, rgb, depth):
         print("rgb timestamp:", rgb.header)
         print("depth timestamp: ", depth.header)
