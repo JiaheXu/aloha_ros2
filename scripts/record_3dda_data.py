@@ -39,8 +39,10 @@ class DataCollector(Node):
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
         self.right_hand_frame = "follower_right/ee_gripper_link"
-        self.left_base_frame = "follower_left/base_link"
-        self.right_base_frame = "follower_right/base_link"
+        # self.left_base_frame = "follower_left/base_link"
+        # self.right_base_frame = "follower_right/base_link"
+        self.left_base_frame = "world"
+        self.right_base_frame = "world"
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -69,16 +71,14 @@ class DataCollector(Node):
         self.r1 = 5
         self.l2 = 6
         self.r2 = 7
-
-
         self.share_button = 8
         self.opotions_button = 9
-
         self.max_button = 9
 
         # states
         self.recording = False
 
+        self.last_data_time = time.time()
         # data
         self.current_stack = []
 
@@ -95,6 +95,7 @@ class DataCollector(Node):
 
         queue_size = 10
         max_delay = 0.01 #10ms
+        self.time_diff = 1.0
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
@@ -155,34 +156,66 @@ class DataCollector(Node):
         self.tf_broadcaster.sendTransform(master_cam_t)
 
     def SyncCallback(self, rgb, depth):
-        print("rgb timestamp:", rgb.header)
-        print("depth timestamp: ", depth.header)
-        self.left_hand_transform = self.tf_buffer.lookup_transform(
-                self.left_hand_frame,
-                self.left_base_frame,
-                rgb.header.stamp,
-                timeout=rclpy.duration.Duration(seconds=0.01)
-            )
-        x = self.left_hand_transform.transform.translation.x
-        y = self.left_hand_transform.transform.translation.y
-        z = self.left_hand_transform.transform.translation.z
-
-        qx = self.left_hand_transform.transform.rotation.x
-        qy = self.left_hand_transform.transform.rotation.y
-        qz = self.left_hand_transform.transform.rotation.z
-        qw = self.left_hand_transform.transform.rotation.w
+        # print("rgb timestamp:", rgb.header)
+        # print("depth timestamp: ", depth.header)
+        data_time = time.time()
+        if(data_time - self.last_data_time < self.time_diff):
+            return
         
+        try:
+            self.left_hand_transform = self.tf_buffer.lookup_transform(
+                    self.left_hand_frame,
+                    self.left_base_frame,
+                    rgb.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.left_base_frame} to {self.left_hand_frame}: {ex}'
+            )
+            return
+
+        try:
+            self.right_hand_transform = self.tf_buffer.lookup_transform(
+                    self.right_hand_frame,
+                    self.right_base_frame,
+                    rgb.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.right_base_frame} to {self.right_hand_frame}: {ex}'
+            )
+            return
+        
+        left_x = self.left_hand_transform.transform.translation.x
+        left_y = self.left_hand_transform.transform.translation.y
+        left_z = self.left_hand_transform.transform.translation.z
+        left_qx = self.left_hand_transform.transform.rotation.x
+        left_qy = self.left_hand_transform.transform.rotation.y
+        left_qz = self.left_hand_transform.transform.rotation.z
+        left_qw = self.left_hand_transform.transform.rotation.w
+
+        right_x = self.right_hand_transform.transform.translation.x
+        right_y = self.right_hand_transform.transform.translation.y
+        right_z = self.right_hand_transform.transform.translation.z
+        right_qx = self.right_hand_transform.transform.rotation.x
+        right_qy = self.right_hand_transform.transform.rotation.y
+        right_qz = self.right_hand_transform.transform.rotation.z
+        right_qw = self.right_hand_transform.transform.rotation.w
+
         current_state = {}
-        current_state["end_effector"] = np.array([x, y, z, qx, qy, qz, qw])
+        current_state["left_ee"] = np.array([left_x, left_y, left_z, left_qx, left_qy, left_qz, left_qw])
+        current_state["right_ee"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
         current_state["rgb"] = np.array(self.br.imgmsg_to_cv2(rgb)) # Todo check rgb order
         current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) # Todo check rgb order
 
         # print("rgb: ", current_state["rgb"].shape)
         # print("depth: ", current_state["depth"].shape)
-
+        self.last_data_time = data_time
         self.current_stack.append(current_state)
 
-        print("tf: ", self.left_hand_transform)
+        # print("tf: ", self.left_hand_transform)
         # print("")
 
     # def img_callback(self, data):
