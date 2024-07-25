@@ -101,8 +101,8 @@ class DataCollector(Node):
 
         # self.bgr_sub = Subscriber(self, Image, "/camera_1/left_image")
         # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
-        self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered")
-        self.depth_sub = Subscriber("/zed/zed_node/left/image_rect_color")
+        self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/left/image_rect_color")
+        self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered" )
         self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub],
                                                      queue_size, max_delay)
         self.time_sync.registerCallback(self.SyncCallback)
@@ -160,7 +160,11 @@ class DataCollector(Node):
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         data_time = time.time()
+        # print("time diff: ", data_time - self.last_data_time )
         if(data_time - self.last_data_time < self.time_diff):
+            return
+        
+        if( self.recording == False ):
             return
         
         try:
@@ -206,15 +210,17 @@ class DataCollector(Node):
         right_qw = self.right_hand_transform.transform.rotation.w
 
         current_state = {}
+        current_state["timestamp"] = data_time
         current_state["left_ee"] = np.array([left_x, left_y, left_z, left_qx, left_qy, left_qz, left_qw])
         current_state["right_ee"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
-        current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr)) # Todo check bgr order
-        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) # Todo check bgr order
+        current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3] # Todo check bgr order
+        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) 
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         # print("right: ", self.right_hand_transform)
         # print("left: ", self.left_hand_transform)
         # print("")
+        print("added a point")
         self.last_data_time = data_time
         self.current_stack.append(current_state)
 
