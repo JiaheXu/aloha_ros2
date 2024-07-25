@@ -99,9 +99,10 @@ class DataCollector(Node):
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
-        self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
-        
+        # self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
+        # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
+        self.rgb_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered")
+        self.depth_sub = Subscriber("/zed/zed_node/left/image_rect_color")
         self.time_sync = ApproximateTimeSynchronizer([self.rgb_sub, self.depth_sub],
                                                      queue_size, max_delay)
         self.time_sync.registerCallback(self.SyncCallback)
