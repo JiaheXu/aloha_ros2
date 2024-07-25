@@ -1,5 +1,5 @@
 #3dda data:
-# rgbd image 1920*1080 need post process
+# bgrd image 1920*1080 need post process
 # start from everywhere
 # episode length 10~100 steps
 # joints position & velocity
@@ -39,8 +39,10 @@ class DataCollector(Node):
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
         self.right_hand_frame = "follower_right/ee_gripper_link"
-        self.left_base_frame = "follower_left/base_link"
-        self.right_base_frame = "follower_right/base_link"
+        # self.left_base_frame = "follower_left/base_link"
+        # self.right_base_frame = "follower_right/base_link"
+        self.left_base_frame = "world"
+        self.right_base_frame = "world"
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -69,16 +71,14 @@ class DataCollector(Node):
         self.r1 = 5
         self.l2 = 6
         self.r2 = 7
-
-
         self.share_button = 8
         self.opotions_button = 9
-
         self.max_button = 9
 
         # states
         self.recording = False
 
+        self.last_data_time = time.time()
         # data
         self.current_stack = []
 
@@ -95,15 +95,15 @@ class DataCollector(Node):
 
         queue_size = 10
         max_delay = 0.01 #10ms
+        self.time_diff = 1.0
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        # self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
+        # self.bgr_sub = Subscriber(self, Image, "/camera_1/left_image")
         # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
-        self.rgb_sub = Subscriber(self, Image, "/zed/zed_node/left/image_rect_color")
-        self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered")
-
-        self.time_sync = ApproximateTimeSynchronizer([self.rgb_sub, self.depth_sub],
+        self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered")
+        self.depth_sub = Subscriber("/zed/zed_node/left/image_rect_color")
+        self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub],
                                                      queue_size, max_delay)
         self.time_sync.registerCallback(self.SyncCallback)
 
@@ -111,28 +111,58 @@ class DataCollector(Node):
         self.timer = self.create_timer(timer_period, self.publish_tf)
     
     def publish_tf(self):
-        t = TransformStamped()
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'world'
-        t.child_frame_id = "follower_left/base_link"
-        t.transform.translation.x = -0.325
-        t.transform.translation.y = 0.0
-        t.transform.translation.z = 0.0
+        left_t = TransformStamped()
+        right_t = TransformStamped()
+        master_cam_t = TransformStamped()
+        # # Read message content and assign it to
+        # # corresponding tf variables
+        ros_time = self.get_clock().now()
+        left_t.header.stamp = ros_time.to_msg()
+        right_t.header.stamp = ros_time.to_msg()
+        master_cam_t.header.stamp = ros_time.to_msg()
 
-        t.transform.rotation.x = 0.0
-        t.transform.rotation.y = 0.0
-        t.transform.rotation.z = 0.0
-        t.transform.rotation.w = 1.0
+        left_t.header.frame_id = 'world'
+        left_t.child_frame_id = "follower_left/base_link"
+        left_t.transform.translation.x = 0.0
+        left_t.transform.translation.y = -0.315
+        left_t.transform.translation.z = 0.0
+        left_t.transform.rotation.x = 0.0
+        left_t.transform.rotation.y = 0.0
+        left_t.transform.rotation.z = 0.0
+        left_t.transform.rotation.w = 1.0
+
+        right_t.header.frame_id = 'world'
+        right_t.child_frame_id = "follower_right/base_link"
+        right_t.transform.translation.x = 0.0
+        right_t.transform.translation.y = 0.315
+        right_t.transform.translation.z = 0.0
+        right_t.transform.rotation.x = 0.0
+        right_t.transform.rotation.y = 0.0
+        right_t.transform.rotation.z = 0.0
+        right_t.transform.rotation.w = 1.0
+
+        master_cam_t.header.frame_id = 'world'
+        master_cam_t.child_frame_id = "master_cam"
+        master_cam_t.transform.translation.x = -0.13913296
+        master_cam_t.transform.translation.y = 0.053
+        master_cam_t.transform.translation.z = 0.43643044
+        master_cam_t.transform.rotation.x = -0.63127772
+        master_cam_t.transform.rotation.y = 0.64917582
+        master_cam_t.transform.rotation.z = -0.31329509
+        master_cam_t.transform.rotation.w = 0.28619116
+
         # # Send the transformation
-        self.tf_broadcaster.sendTransform(t)
+        self.tf_broadcaster.sendTransform(left_t)
+        self.tf_broadcaster.sendTransform(right_t)
+        self.tf_broadcaster.sendTransform(master_cam_t)
 
-
-
-    
     def SyncCallback(self, bgr, depth):
-        # print("rgb timestamp:", rgb.header)
+        # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
-        current_state = {}
+        data_time = time.time()
+        if(data_time - self.last_data_time < self.time_diff):
+            return
+        
         try:
             self.left_hand_transform = self.tf_buffer.lookup_transform(
                     self.left_hand_frame,
@@ -158,53 +188,44 @@ class DataCollector(Node):
                 f'Could not transform {self.right_base_frame} to {self.right_hand_frame}: {ex}'
             )
             return
+        
+        left_x = self.left_hand_transform.transform.translation.x
+        left_y = self.left_hand_transform.transform.translation.y
+        left_z = self.left_hand_transform.transform.translation.z
+        left_qx = self.left_hand_transform.transform.rotation.x
+        left_qy = self.left_hand_transform.transform.rotation.y
+        left_qz = self.left_hand_transform.transform.rotation.z
+        left_qw = self.left_hand_transform.transform.rotation.w
 
+        right_x = self.right_hand_transform.transform.translation.x
+        right_y = self.right_hand_transform.transform.translation.y
+        right_z = self.right_hand_transform.transform.translation.z
+        right_qx = self.right_hand_transform.transform.rotation.x
+        right_qy = self.right_hand_transform.transform.rotation.y
+        right_qz = self.right_hand_transform.transform.rotation.z
+        right_qw = self.right_hand_transform.transform.rotation.w
+
+        current_state = {}
+        current_state["left_ee"] = np.array([left_x, left_y, left_z, left_qx, left_qy, left_qz, left_qw])
+        current_state["right_ee"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
+        current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr)) # Todo check bgr order
+        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) # Todo check bgr order
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         # print("right: ", self.right_hand_transform)
         # print("left: ", self.left_hand_transform)
         # print("")
-        left_x = self.left_hand_transform.transform.translation.x
-        left_y = self.left_hand_transform.transform.translation.y
-        left_z = self.left_hand_transform.transform.translation.z
-
-        left_qx = self.left_hand_transform.transform.rotation.x
-        left_qy = self.left_hand_transform.transform.rotation.y
-        left_qz = self.left_hand_transform.transform.rotation.z
-        left_qw = self.left_hand_transform.transform.rotation.w
-        current_state["left_end_effector"] = np.array([left_x, left_y, left_z, left_qx, left_qy, left_qz, left_qw])
-
-
-        right_x = self.right_hand_transform.transform.translation.x
-        right_y = self.right_hand_transform.transform.translation.y
-        right_z = self.right_hand_transform.transform.translation.z
-
-        right_qx = self.right_hand_transform.transform.rotation.x
-        right_qy = self.right_hand_transform.transform.rotation.y
-        right_qz = self.right_hand_transform.transform.rotation.z
-        right_qw = self.right_hand_transform.transform.rotation.w
-        current_state["right_end_effector"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
-
-        current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr)) # Todo check rgb order
-        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) # Todo check rgb order
-
-        # print("rgb: ", current_state["rgb"].shape)
-        # print("depth: ", current_state["depth"].shape)
-
+        self.last_data_time = data_time
         self.current_stack.append(current_state)
 
-        # print("tf: ", self.left_hand_transform)
-        # print("")
 
-    # def img_callback(self, data):
-    #     self.get_logger().info('Receiving video frame')
-    #     current_frame = self.br.imgmsg_to_cv2(data)
-    #     image1_np = np.array(current_frame[:,:,0:3])
-        # update current stepfrom rclpy.qos import QoSProfile
     
 
     def save_data(self):
         now = time.time()
+        print("saved ", len(self.current_stack) , "data !!!")
+        print("saved ", len(self.current_stack) , "data !!!")
+        print("saved ", len(self.current_stack) , "data !!!")
         np.save( str(now), self.current_stack)
     
     def clean_data(self):
