@@ -169,8 +169,8 @@ class DataCollector(Node):
         
         try:
             self.left_hand_transform = self.tf_buffer.lookup_transform(
-                    self.left_hand_frame,
                     self.left_base_frame,
+                    self.left_hand_frame,
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
@@ -182,8 +182,8 @@ class DataCollector(Node):
 
         try:
             self.right_hand_transform = self.tf_buffer.lookup_transform(
-                    self.right_hand_frame,
                     self.right_base_frame,
+                    self.right_hand_frame,
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
