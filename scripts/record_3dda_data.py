@@ -22,7 +22,7 @@ from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, I
 import numpy as np 
 import time
 
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, JointState
 from cv_bridge import CvBridge
 import cv2 
 from rclpy.qos import QoSProfile
@@ -86,14 +86,14 @@ class DataCollector(Node):
         self.failure_stop_pressed_last = False
         
         # Call on_timer function every second
-        self.timer_period = 0.01
+        self.timer_period = 2.0
         # self.timer = self.create_timer( self.timer_period, self.on_timer )
         self.joystick_sub = self.create_subscription(Joy, "/joy", self.joyCallback,1)
         self.br = CvBridge()
         # self.subscription = self.create_subscription(Image, "/camera_1/left_image", self.img_callback, 1)
         
 
-        queue_size = 10
+        queue_size = 1000
         max_delay = 0.01 #10ms
         self.time_diff = 1.0
 
@@ -103,7 +103,11 @@ class DataCollector(Node):
         # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
         self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/left/image_rect_color")
         self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered" )
-        self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub],
+        self.left_hand_sub = Subscriber(self, JointState, "/follower_left/joint_states")
+        self.right_hand_sub = Subscriber(self, JointState, "/follower_right/joint_states")
+
+        # self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub, self.left_hand_sub, self.right_hand_sub],
+        self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub, self.left_hand_sub, self.right_hand_sub],
                                                      queue_size, max_delay)
         self.time_sync.registerCallback(self.SyncCallback)
 
@@ -156,9 +160,14 @@ class DataCollector(Node):
         self.tf_broadcaster.sendTransform(right_t)
         self.tf_broadcaster.sendTransform(master_cam_t)
 
-    def SyncCallback(self, bgr, depth):
+    # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
+    def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
+        # print("left_hand_joints: ", left_hand_joints.header)
+        # print("in call back")
+        # print("left: ", left_hand_joints.position)
+        # print("left: ", left_hand_joints.velocity)
         data_time = time.time()
         # print("time diff: ", data_time - self.last_data_time )
         if(data_time - self.last_data_time < self.time_diff):
@@ -215,12 +224,18 @@ class DataCollector(Node):
         current_state["right_ee"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
         current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3] # Todo check bgr order
         current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) 
+        current_state["left_pos"] = np.array(left_hand_joints.position) 
+        current_state["left_vel"] = np.array(left_hand_joints.velocity) 
+        current_state["right_pos"] = np.array(right_hand_joints.position) 
+        current_state["right_vel"] = np.array(right_hand_joints.velocity) 
+
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         # print("right: ", self.right_hand_transform)
         # print("left: ", self.left_hand_transform)
         # print("")
         print("added a point")
+        # print("left_hand_joints: ", left_hand_joints)
         self.last_data_time = data_time
         self.current_stack.append(current_state)
 
