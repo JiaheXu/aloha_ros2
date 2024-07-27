@@ -20,11 +20,11 @@ from ctypes import * # convert float to uint32
 from matplotlib import pyplot as plt
 import copy
 
-import rospy
-import rosbag
+# import rospy
+# import rosbag
 from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud2, PointField
-import sensor_msgs.point_cloud2 as pc2
+# import sensor_msgs.point_cloud2 as pc2
 from numpy.linalg import inv
 # from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromRosToOpen3d
 from scipy.spatial.transform import Rotation
@@ -142,6 +142,7 @@ def visualize_pcd(pcd, left, right):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
+    coor_frame.scale(0.5, center=coor_frame.get_center())
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -152,7 +153,9 @@ def visualize_pcd(pcd, left, right):
     mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
 
     left_mesh = copy.deepcopy(mesh).transform(left)
+    left_mesh.scale(0.1, center=left_mesh.get_center())
     right_mesh = copy.deepcopy(mesh).transform(right)
+    right_mesh.scale(0.1, center=right_mesh.get_center())
     vis.add_geometry(left_mesh)
     vis.add_geometry(right_mesh)
     # view_ctl.set_up([-0.4, 0.0, 1.0])
@@ -168,7 +171,7 @@ def visualize_pcd(pcd, left, right):
 
 def main():
     
-    data = np.load("./1.npy", allow_pickle = True)
+    data = np.load("./test.npy", allow_pickle = True)
 
     cam_extrinsic = get_transform( [-0.13913296, 0.053, 0.43643044], [-0.63127772, 0.64917582, -0.31329509, 0.28619116])
     o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 734.1779174804688, 734.1779174804688, 993.6226806640625, 551.8895874023438)
@@ -214,9 +217,11 @@ def main():
         final_pcd = final_pcd.transform(cam_extrinsic)
         mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
 
-        left_transform = inv(get_transform(point['left_ee'][0:3], point['left_ee'][3:7] ) )
-        right_transform = inv(get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) )
-        visualize_pcd(final_pcd, left_transform, right_transform)
+        left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
+        right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
+        # print("left_ee: ",point['left_ee'][0:3])
+        print("right: ",point['right_ee'][0:3])        
+        # visualize_pcd(final_pcd, left_transform, right_transform)
         # print("left: ", )
         # print("right: ", inv(get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) ))
 
