@@ -127,6 +127,7 @@ def get_transform( trans, quat):
     t = np.eye(4)
     t[:3, :3] = Rotation.from_quat( quat ).as_matrix()
     t[:3, 3] = trans
+    # print(t)
     return t
 
 def get_cube_corners( bound_box ):
@@ -142,7 +143,7 @@ def visualize_pcd(pcd, left, right):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    coor_frame.scale(0.5, center=coor_frame.get_center())
+    coor_frame.scale(0.1, center=coor_frame.get_center())
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -163,7 +164,7 @@ def visualize_pcd(pcd, left, right):
     # view_ctl.set_lookat([0.0 ,0.0 ,0.0])
     view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
     # view_ctl.set_up((0, -1, 0))  # set the negative direction of the y-axis as the up direction
-    view_ctl.set_front((-2.5, 0.0, 0.7))  # set the positive direction of the x-axis toward you
+    view_ctl.set_front((-0.3, 0.0, 0.2))  # set the positive direction of the x-axis toward you
     view_ctl.set_lookat((0.0, 0.0, 0.3))  # set the original point as the center point of the window
     vis.run()
     vis.destroy_window()
@@ -171,7 +172,7 @@ def visualize_pcd(pcd, left, right):
 
 def main():
     
-    data = np.load("./test.npy", allow_pickle = True)
+    data = np.load("./18.npy", allow_pickle = True)
 
     cam_extrinsic = get_transform( [-0.13913296, 0.053, 0.43643044], [-0.63127772, 0.64917582, -0.31329509, 0.28619116])
     o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 734.1779174804688, 734.1779174804688, 993.6226806640625, 551.8895874023438)
@@ -221,7 +222,10 @@ def main():
         right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
         # print("left_ee: ",point['left_ee'][0:3])
         print("right: ",point['right_ee'][0:3])        
-        # visualize_pcd(final_pcd, left_transform, right_transform)
+
+        left_transform = left_transform @ get_transform( [-0.02, -0.035, -0.045], [0., 0., 0., 1.] )
+        right_transform = right_transform @ get_transform( [-0.005, -0.03, -0.036], [0., 0., 0., 1.] )
+        visualize_pcd(final_pcd, left_transform, right_transform)
         # print("left: ", )
         # print("right: ", inv(get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) ))
 
