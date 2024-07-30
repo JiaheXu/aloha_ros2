@@ -17,8 +17,9 @@ import numpy as np
 import open3d as o3d
 import numpy as np
 from ctypes import * # convert float to uint32
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import copy
+import torch
 
 # import rospy
 # import rosbag
@@ -49,6 +50,8 @@ class Projector:
         depth = 10.0*np.ones((height, width), dtype = float)
         depth_uint = np.zeros((height, width), dtype=np.uint16)
         color = np.zeros((height, width, 3), dtype=np.uint8)
+        xyz =  np.full((height, width, 3), np.nan)
+
 
         for i in range(0, self.n):
             point4d = np.append(self.points[i], 1)
@@ -68,6 +71,7 @@ class Projector:
 
             depth[v][u] = zc
             depth_uint[v, u] = zc * 1000
+            xyz[v,u,:] = self.points[i]
             color[v, u, :] = self.colors[i] * 255
 
         im_color = o3d.geometry.Image(color)
@@ -75,23 +79,8 @@ class Projector:
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
             im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
         # return rgbd
-        return color,depth, depth_uint, rgbd
+        return color, depth, xyz, rgbd
 
-def plot_func(src, dst, dir="", idx=0, save = False):
-
-    if(src.shape[0] != 3):
-        src = np.transpose(src)
-    if(dst.shape[0] != 3):
-        dst = np.transpose(dst)    
-    fig = plt.figure()
-    ax = fig.add_subplot(111,projection="3d")
-
-    ax.scatter(src[0, :], src[1, :], src[2, :], c = colors[0])
-    ax.scatter(dst[0, :], dst[1, :], dst[2, :], c = colors[1])
-    if(save == False):
-        plt.show()
-    else:
-        plt.savefig(dir + "/" + str(idx) + ".svg")
 
 def get_init_trans(src, dst):
     if(src.shape[0] == 3):
@@ -103,15 +92,7 @@ def get_init_trans(src, dst):
     return trans
 
 
-def print_plot(F_reg, src, dst, dir, idx = 0,  save = False):
-    rot = F_reg[0:3, 0:3]
-    trans = F_reg[0:3, 3]
-    
-    trans = trans.reshape(3,1)
-    print("rot: ", rot)
-    print("trans: ", trans)
-    pcd = rot @ np.transpose(dst) + trans
-    plot_func( src, pcd , dir, idx = idx, save = save)
+
     
 def display_inlier_outlier(cloud, ind):
     inlier_cloud = cloud.select_by_index(ind)
@@ -198,6 +179,14 @@ def cropping(xyz, rgb, bound_box, label = None):
         valid_pcd.colors = o3d.utility.Vector3dVector( valid_rgb )
     return valid_xyz, valid_rgb, valid_label, valid_pcd
 
+
+def get_delta_transform(A, B): # A = delta @ B
+    delta_trans = get_transform(A[0:3], A[3:7]) @ inv( get_transform(B[0:3], B[3:7] )) 
+    delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
+    delta_quat = delat_rot.as_quat()
+    delta_openess = left_trajectory[idx][-1] - left_trajectory[idx-1][-1]
+    return 
+
 def visualize_pcd(pcd, left, right):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
@@ -268,8 +257,8 @@ def visualize_bimanual_traj(pcd, left_transforms, right_transforms):
 
 def main():
     
-    data = np.load("./0.npy", allow_pickle = True)
-    
+
+
     cam_extrinsic = get_transform( [-0.13913296, 0.053, 0.43643044], [-0.63127772, 0.64917582, -0.31329509, 0.28619116])
     o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 734.1779174804688, 734.1779174804688, 993.6226806640625, 551.8895874023438)
 
@@ -284,51 +273,172 @@ def main():
     ])
 
     bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
+    tasks = ["duck_in_bowls+0"]
+    processed_data_dir = "./processed"
+    if ( os.path.isdir(processed_data_dir) == False ):
+        os.mkdir(processed_data_dir)
+
+    for task_idx, task_name in enumerate(tasks, 0):
+        dir_path = './' + task_name + '/'
+        res = []
+        save_data_dir = processed_data_dir + '/' + task_name
+        if ( os.path.isdir(save_data_dir) == False ):
+            os.mkdir(save_data_dir)
+
+        for path in os.listdir(dir_path):
+            # check if current path is a file
+            if os.path.isfile(os.path.join(dir_path, path)):
+                res.append(path)
+
+        for data_idx, file in enumerate(res):
+            data = np.load(dir_path+file, allow_pickle = True)
+            # for point in data:
+            point = data[0] # only read the first one
+            bgr = point['bgr']
+            rgb = bgr[...,::-1].copy()
+            depth = point['depth']
+            im_color = o3d.geometry.Image(rgb)
+            im_depth = o3d.geometry.Image(depth)
+            rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+                im_color, im_depth, depth_scale=1, depth_trunc=2, convert_rgb_to_intensity=False)
+            original_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+                    rgbd,
+                    o3d_intrinsic
+                    # resized_intrinsic
+                )
+            original_pcd = original_pcd.transform(cam_extrinsic)
+            mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+            xyz = np.array(original_pcd.points)
+            rgb = np.array(original_pcd.colors)
+            valid_xyz, valid_rgb, valid_label, cropped_pcd = cropping( xyz, rgb, bound_box )
+            
+            p = Projector(cropped_pcd)
+
+            rgb, depth, xyz, rgbd = p.project_to_rgbd(256, 256, resized_intrinsic_np, inv(cam_extrinsic), 1000,10)
+            resized_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+                    rgbd,
+                    # o3d_intrinsic
+                    resized_intrinsic_o3d,
+                    # remove_nan_points=False
+                )
+            # print(resized_pcd)
+            resized_pcd.transform( cam_extrinsic )
+            resized_img_data = im.fromarray(rgb)
+            resized_img_data.save('cam_img.png')
+
+            # verify xyz and depth value
+            # valid_pcd = o3d.geometry.PointCloud()
+            # xyz = xyz.reshape(-1,3)
+            # rgb = (rgb/255.0).reshape(-1,3)
+            # x = xyz[:,0]
+            # valid_mask = np.where( np.logical_not(np.isnan(x) ) )
+            # valid_pcd.points = o3d.utility.Vector3dVector( xyz[valid_mask] )
+            # valid_pcd.colors = o3d.utility.Vector3dVector( rgb[valid_mask] )
+            # o3d.visualization.draw_geometries([valid_pcd])
+
+            resized_img_data = np.transpose(rgb, (2, 0, 1) ).astype(float)
+            # print("resized_img_data: ", resized_img_data.shape)
+            resized_xyz = np.transpose(xyz, (2, 0, 1) ).astype(float)
+            # print("resized_xyz: ", resized_xyz.shape)
+            n_cam = 1
+            obs = np.zeros( (n_cam, 2, 3, 256, 256) )
+            obs[0][0] = resized_img_data
+            obs[0][1] = resized_xyz
+
+            camera_dicts = []
+            left_transforms = []
+            right_transforms = []
+            
+            frame_ids = [0] # for now, only use the observation in the beginning
+
+            # frame_ids = [i for i in range(len(data))]
+            # print("frame_id: ", frame_ids)
+
+            # gripper end val is around 0.6 ~ 1.6
+            left_gripper_max = 0.0
+            left_gripper_min = 2.0
+
+            right_gripper_max = 0.0
+            right_gripper_min = 2.0
 
 
-    # for point in data:
-    point = data[0] # only read the first one
-    bgr = point['bgr']
-    rgb = bgr[...,::-1].copy()
-    depth = point['depth']
-    im_color = o3d.geometry.Image(rgb)
-    im_depth = o3d.geometry.Image(depth)
-    rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-        im_color, im_depth, depth_scale=1, depth_trunc=2, convert_rgb_to_intensity=False)
-    original_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd,
-            o3d_intrinsic
-            # resized_intrinsic
-        )
-    original_pcd = original_pcd.transform(cam_extrinsic)
-    mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    xyz = np.array(original_pcd.points)
-    rgb = np.array(original_pcd.colors)
-    valid_xyz, valid_rgb, valid_label, cropped_pcd = cropping( xyz, rgb, bound_box )
-    p = Projector(cropped_pcd)
-    rgb, depth, depth_uint8,rgbd = p.project_to_rgbd(256, 256, resized_intrinsic_np, inv(cam_extrinsic), 1000,10)
-    resized_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd,
-            # o3d_intrinsic
-            resized_intrinsic_o3d
-        )
-    resized_pcd.transform( cam_extrinsic )
-    img_data = im.fromarray(rgb)
-    img_data.save('cam_img.png')
+            left_trajectory = []
+            right_trajectory = []
+            delta_left_trajectory = []
+            delta_right_trajectory = []
 
-    left_transforms = []
-    right_transforms = []
-    for point in data:
-        left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
-        right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )
-        left_transform = left_transform @ get_transform( [-0.02, -0.035, -0.045], [0., 0., 0., 1.] )
-        right_transform = right_transform @ get_transform( [-0.005, -0.03, -0.036], [0., 0., 0., 1.] )
+            for point in data:
+                left_gripper_max = max(left_gripper_max, point["left_pos"][6])
+                left_gripper_min = min(left_gripper_min, point["left_pos"][6])
+                right_gripper_max = max(right_gripper_max, point["right_pos"][6])
+                right_gripper_min = min(right_gripper_min, point["right_pos"][6])
 
-        left_transforms.append(left_transform)
-        right_transforms.append(right_transform)
-    # print("len: ", left_transforms)
-    visualize_bimanual_traj(resized_pcd, left_transforms, right_transforms)
-     
+            for point in data:
+                left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
+                left_transform = left_transform @ get_transform( [-0.02, -0.035, -0.045], [0., 0., 0., 1.] )
+                left_rot = Rotation.from_matrix(left_transform[:3,:3])
+                left_quat = left_rot.as_quat()
+                left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min )
+                left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
+                right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )
+                right_transform = right_transform @ get_transform( [-0.005, -0.03, -0.036], [0., 0., 0., 1.] )
+                right_rot = Rotation.from_matrix(right_transform[:3,:3])
+                right_quat = right_rot.as_quat()
+                right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min )
+                right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
+                
+            for idx, trans in enumerate(right_trajectory, 0):
+                if(idx == 0):
+                    continue
+                delta_trans = get_transform(right_trajectory[idx][0:3], right_trajectory[idx][3:7]) @ inv( get_transform(right_trajectory[idx-1][0:3], right_trajectory[idx-1][3:7] ) )
+                delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
+                delta_quat = delat_rot.as_quat()
+                delta_openess = right_trajectory[idx][-1] - right_trajectory[idx-1][-1]
+                action = np.array( [delta_trans[0,3], delta_trans[1,3], delta_trans[2,3], delta_quat[0], delta_quat[1], delta_quat[2], delta_quat[3], delta_openess] )
+                delta_right_trajectory.append( action )
+
+            delta_transform = get_transform(right_trajectory[-1][0:3], right_trajectory[-1][3:7]) @ inv( get_transform(right_trajectory[0][0:3], right_trajectory[0][3:7] ) )
+            delat_rot = Rotation.from_matrix(delta_transform[:3,:3])
+            delta_quat = delat_rot.as_quat()
+            delta_openess = right_trajectory[-1][-1] - right_trajectory[0][-1]
+            
+            action = np.array( [delta_transform[0,3], delta_transform[1,3], delta_transform[2,3], delta_quat[0], delta_quat[1], delta_quat[2], delta_quat[3], delta_openess] )
+            action = action.reshape(1,8)
+
+            gripper = copy.deepcopy( right_trajectory[0])
+            gripper = gripper.reshape(1,8)
+            
+            trajectories = np.array(delta_right_trajectory)
+            trajectories = trajectories.reshape(-1,8)
+            # print("trajectories: ", trajectories.shape)
+            episode = []
+            episode.append(frame_ids) # 0
+
+            obs_tensors = [ torch.from_numpy(obs) ]
+            episode.append(obs_tensors) # 1
+           
+            action_tensor =  [ torch.from_numpy(action) ]
+            episode.append(action_tensor) # 2
+
+            episode.append(camera_dicts) # 3
+
+            gripper_tensor = [ torch.from_numpy(gripper) ]
+            episode.append(gripper_tensor) # 4
+
+            trajectories_tensor = [ torch.from_numpy(trajectories) ]
+            episode.append(trajectories_tensor) # 5
+
+            np.save("./processed/{}/ep{}".format(task_name,data_idx), episode)
+            print("finished ", task_name, " data: ", data_idx)
 if __name__ == "__main__":
     main()
+
+    # [frame_ids],  # we use chunk and max_episode_length to index it
+    # [obs_tensors],  # wrt frame_ids, (n_cam, 2, 3, 256, 256) 
+    #     obs_tensors[i][:, 0] is RGB, obs_tensors[i][:, 1] is XYZ
+    # [action_tensors],  # wrt frame_ids, (1, 8)
+    # [camera_dicts],
+    # [gripper_tensors],  # wrt frame_ids, (1, 8) ,curretn state
+    # [trajectories]  # wrt frame_ids, (N_i, 8)
+    # List of tensors
