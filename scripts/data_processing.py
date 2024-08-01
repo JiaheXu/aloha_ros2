@@ -212,19 +212,11 @@ def cropping(xyz, rgb, bound_box, label = None):
         valid_pcd.colors = o3d.utility.Vector3dVector( valid_rgb )
     return valid_xyz, valid_rgb, valid_label, valid_pcd
 
-
-def get_delta_transform(A, B): # A = delta @ B
-    delta_trans = get_transform(A[0:3], A[3:7]) @ inv( get_transform(B[0:3], B[3:7] )) 
-    delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
-    delta_quat = delat_rot.as_quat()
-    delta_openess = left_trajectory[idx][-1] - left_trajectory[idx-1][-1]
-    return 
-
 def visualize_pcd(pcd, left, right):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
+    coor_frame.scale(0.2, center=(0., 0., 0.))
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -233,11 +225,11 @@ def visualize_pcd(pcd, left, right):
     vis.add_geometry(pcd)
 
     mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-
+    mesh.scale(0.1, center=(0., 0., 0.))
     left_mesh = copy.deepcopy(mesh).transform(left)
-    left_mesh.scale(0.1, center=left_mesh.get_center())
+    
     right_mesh = copy.deepcopy(mesh).transform(right)
-    right_mesh.scale(0.1, center=right_mesh.get_center())
+
     vis.add_geometry(left_mesh)
     vis.add_geometry(right_mesh)
     # view_ctl.set_up([-0.4, 0.0, 1.0])
@@ -255,7 +247,7 @@ def visualize_bimanual_traj(pcd, left_transforms, right_transforms):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
+    coor_frame.scale(0.2, center=(0., 0., 0.))
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -264,19 +256,14 @@ def visualize_bimanual_traj(pcd, left_transforms, right_transforms):
     vis.add_geometry(pcd)
 
     mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    object_pcds = [pcd]
-    coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
-    mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    mesh.scale(0.1, center=(0., 0., 0.))
 
     for left in left_transforms:
         left_mesh = copy.deepcopy(mesh).transform(left)
-        left_mesh.scale(0.1, center=left_mesh.get_center())
         vis.add_geometry(left_mesh)
 
     for right in right_transforms:
         right_mesh = copy.deepcopy(mesh).transform(right)
-        right_mesh.scale(0.1, center=right_mesh.get_center())
         vis.add_geometry(right_mesh)
 
     view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
@@ -290,7 +277,7 @@ def visualize_pcd_transform(pcd, transforms):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
+    coor_frame.scale(0.2, center=(0., 0., 0.))
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -299,15 +286,10 @@ def visualize_pcd_transform(pcd, transforms):
     vis.add_geometry(pcd)
 
     mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    object_pcds = [pcd]
-    coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
-    mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-
-    for right in transforms:
-        right_mesh = copy.deepcopy(mesh).transform(get_transform(right[0:3], right[3:7]) )
-        right_mesh.scale(0.1, center=right_mesh.get_center())
-        vis.add_geometry(right_mesh)
+    mesh.scale(0.1, center=(0., 0., 0.))
+    for trans in transforms:
+        new_mesh = copy.deepcopy(mesh).transform(get_transform(trans[0:3], trans[3:7]) )
+        vis.add_geometry(new_mesh)
 
     view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
     view_ctl.set_front((-0.3, 0.0, 0.2))  # set the positive direction of the x-axis toward you
@@ -320,7 +302,7 @@ def visualize_pcd_delta_transform(pcd, start_t, delta_transforms):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
+    coor_frame.scale(0.2, center=(0., 0., 0.) )
     vis.add_geometry(coor_frame)
     vis.get_render_option().background_color = np.asarray([255, 255, 255])
 
@@ -329,19 +311,15 @@ def visualize_pcd_delta_transform(pcd, start_t, delta_transforms):
     vis.add_geometry(pcd)
 
     mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    object_pcds = [pcd]
-    coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    coor_frame.scale(0.2, center=coor_frame.get_center())
-    mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    mesh.scale(0.1, center=(0., 0., 0.))
 
-    mesh = mesh.transform( get_transform(start_t[0:3], start_t[3:7]) )
-    new_mesh = copy.deepcopy(mesh)
-    new_mesh.scale(0.1, center=new_mesh.get_center())
+    new_mesh = copy.deepcopy(mesh).transform( get_transform(start_t[0:3], start_t[3:7]) )
     vis.add_geometry(new_mesh)
+
+    last_trans = get_transform( start_t[0:3], start_t[3:7] )
     for delta_t in delta_transforms:
-        mesh = mesh.transform( get_transform(delta_t[0:3], delta_t[3:7]))
-        new_mesh = copy.deepcopy(mesh)
-        new_mesh.scale(0.1, center=new_mesh.get_center())
+        last_trans = get_transform( delta_t[0:3], delta_t[3:7] ) @ last_trans
+        new_mesh = copy.deepcopy(mesh).transform(last_trans)
         vis.add_geometry(new_mesh)
 
     view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
@@ -368,7 +346,7 @@ def main():
     ])
 
     bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
-    tasks = ["duck_in_bowls+0"]
+    tasks = ["duck_in_bowls+0_"]
     processed_data_dir = "./processed"
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)
@@ -486,14 +464,14 @@ def main():
 
             for point in data:
                 # left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
-                # left_transform = left_transform @ get_transform( [-0.02, -0.035, -0.045], [0., 0., 0., 1.] )
+                # left_transform = left_transform @ get_transform( [ 0.00, 0.01, 0.0], [0., 0., 0., 1.] )
                 # left_rot = Rotation.from_matrix(left_transform[:3,:3])
                 # left_quat = left_rot.as_quat()
                 # left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min )
                 # left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
                 right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )
-                right_transform = right_transform @ get_transform( [-0.005, -0.03, -0.036], [0., 0., 0., 1.] )
+                right_transform = right_transform @ get_transform( [0.035, 0.00, 0.01], [0., 0., 0., 1.] )
                 right_rot = Rotation.from_matrix(right_transform[:3,:3])
                 right_quat = right_rot.as_quat()
                 right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min )
