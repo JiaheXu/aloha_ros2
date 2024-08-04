@@ -426,6 +426,7 @@ def main():
             ########################################################################################## save data
 
             resized_img_data = np.transpose(rgb, (2, 0, 1) ).astype(float)
+            resized_img_data = resized_img_data / 255.0
             # print("resized_img_data: ", resized_img_data.shape)
             resized_xyz = np.transpose(xyz, (2, 0, 1) ).astype(float)
             # print("resized_xyz: ", resized_xyz.shape)
@@ -520,21 +521,26 @@ def main():
             episode = []
             episode.append(frame_ids) # 0
 
+
+            obs = obs.astype(float)
             obs_tensors = [ torch.from_numpy(obs) ]
             episode.append(obs_tensors) # 1
            
+            action = action.astype(float)
             action_tensor =  [ torch.from_numpy(action) ]
             episode.append(action_tensor) # 2
 
             episode.append(camera_dicts) # 3
 
+            gripper = gripper.astype(float)
             gripper_tensor = [ torch.from_numpy(gripper) ]
             episode.append(gripper_tensor) # 4
 
+            trajectories = trajectories.astype(float)
             trajectories_tensor = [ torch.from_numpy(trajectories) ]
             episode.append(trajectories_tensor) # 5
 
-            np.save("./processed/{}/ep{}".format(task_name,data_idx), episode)
+            np.save("{}/{}/ep{}".format(processed_data_dir,task_name,data_idx), episode)
             print("finished ", task_name, " data: ", data_idx)
 if __name__ == "__main__":
     main()
