@@ -315,7 +315,7 @@ def main():
     ])
 
     bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
-    tasks = ["duck_in_bowls+0"]
+    tasks = ["duck_in_bowls+0_"]
     processed_data_dir = "./processed_bimanual"
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)
@@ -470,7 +470,7 @@ def main():
             for idx, trans in enumerate(left_trajectory, 0):
                 if(idx == 0):
                     continue
-                delta_trans = get_transform(left_trajectory[idx][0:3], left_trajectory[idx][3:7]) @ inv( get_transform(left_trajectory[idx-1][0:3], left_trajectory[idx-1][3:7] ) )
+                delta_trans = get_transform(left_trajectory[idx][0:3], left_trajectory[idx][3:7]) @ inv( get_transform(left_trajectory[0][0:3], left_trajectory[0][3:7] ) )
                 delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
                 delta_quat = delat_rot.as_quat()
                 openess = left_trajectory[idx][-1]
@@ -481,7 +481,7 @@ def main():
             for idx, trans in enumerate(right_trajectory, 0):
                 if(idx == 0):
                     continue
-                delta_trans = get_transform(right_trajectory[idx][0:3], right_trajectory[idx][3:7]) @ inv( get_transform(right_trajectory[idx-1][0:3], right_trajectory[idx-1][3:7] ) )
+                delta_trans = get_transform(right_trajectory[idx][0:3], right_trajectory[idx][3:7]) @ inv( get_transform(right_trajectory[0][0:3], right_trajectory[0][3:7] ) )
                 delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
                 delta_quat = delat_rot.as_quat()
                 openess = right_trajectory[idx][-1]

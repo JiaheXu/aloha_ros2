@@ -489,10 +489,10 @@ def main():
             # print("max: ", max_x, max_y, max_z)
             # print("min: ", min_x, min_y, min_z)
 
-            for idx, trans in enumerate(right_trajectory, 0):
+            for idx, trans in enumerate(right_trajectory, 0): # wrt to t0
                 if(idx == 0):
                     continue
-                delta_trans = get_transform(right_trajectory[idx][0:3], right_trajectory[idx][3:7]) @ inv( get_transform(right_trajectory[idx-1][0:3], right_trajectory[idx-1][3:7] ) )
+                delta_trans = get_transform(right_trajectory[idx][0:3], right_trajectory[idx][3:7]) @ inv( get_transform(right_trajectory[0][0:3], right_trajectory[0][3:7] ) )
                 delat_rot = Rotation.from_matrix(delta_trans[:3,:3])
                 delta_quat = delat_rot.as_quat()
                 openess = right_trajectory[idx][-1]
