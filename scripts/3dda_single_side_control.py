@@ -164,3 +164,9 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
+# ### ALOHA Fixed Constants
+# DT = 0.02
+#     from rclpy.duration import Duration
+#     from rclpy.constants import S_TO_NS
+#     DT_DURATION = Duration(seconds=0, nanoseconds=DT * S_TO_NS)

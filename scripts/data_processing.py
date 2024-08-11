@@ -480,14 +480,7 @@ def main():
                 
                 # print("right_openess: ", right_openess)
             right_trajectory_np = np.array(right_trajectory)
-            max_x = np.max( right_trajectory_np[:,0])
-            max_y = np.max( right_trajectory_np[:,1])
-            max_z = np.max( right_trajectory_np[:,2])
-            min_x = np.min( right_trajectory_np[:,0])
-            min_y = np.min( right_trajectory_np[:,1])
-            min_z = np.min( right_trajectory_np[:,2])
-            # print("max: ", max_x, max_y, max_z)
-            # print("min: ", min_x, min_y, min_z)
+
 
             for idx, trans in enumerate(right_trajectory, 0): # wrt to t0
                 if(idx == 0):
@@ -499,6 +492,8 @@ def main():
                 # print("delta_openess: ", delta_openess)
                 action = np.array( [delta_trans[0][3], delta_trans[1][3], delta_trans[2][3], delta_quat[0], delta_quat[1], delta_quat[2], delta_quat[3], openess] )
                 delta_right_trajectory.append( action )
+
+
 
             # visualize_pcd_transform(all_valid_resized_pcd, right_trajectory)
             # visualize_pcd_delta_transform(all_valid_resized_pcd, right_trajectory[0], delta_right_trajectory)
@@ -517,6 +512,16 @@ def main():
             
             trajectories = np.array(delta_right_trajectory)
             trajectories = trajectories.reshape(-1,8)
+
+            max_x = np.max( trajectories[:,0])
+            max_y = np.max( trajectories[:,1])
+            max_z = np.max( trajectories[:,2])
+            min_x = np.min( trajectories[:,0])
+            min_y = np.min( trajectories[:,1])
+            min_z = np.min( trajectories[:,2])
+            print("delta_max: ", max_x, max_y, max_z)
+            print("delta_min: ", min_x, min_y, min_z)
+            #             
             # print("trajectories: ", trajectories.shape)
             episode = []
             episode.append(frame_ids) # 0
