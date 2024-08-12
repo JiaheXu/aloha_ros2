@@ -164,22 +164,38 @@ def visualize_pcd(pcd, left = None, right = None):
     vis.run()
     vis.destroy_window()
 
-
+def project_color( point_3d, color, image, extrinsic, intrinsic):
+                
+    point4d = np.append(point_3d, 1)
+    new_point4d = np.matmul(extrinsic, point4d)
+    point3d = new_point4d[:-1]
+    zc = point3d[2]
+    new_point3d = np.matmul(intrinsic, point3d)
+    new_point3d = new_point3d/new_point3d[2]
+    u = int(round(new_point3d[0]))
+    v = int(round(new_point3d[1]))
+    if(v<0 or v>= image.shape[0] or u<0 or u>= image.shape[1]):
+        return image
+    
+    image[max(0, v-5): min(v+5, image.shape[0]), max(0, u-5): min(u+5, image.shape[1]) ] = color
+    # print("updated")
+    return image
 def main():
     
-    # data = np.load("./2arms_open_pen_new/4.npy", allow_pickle = True)
-    # data = np.load("./duck_in_bowls+0_/1.npy", allow_pickle = True)
-    
-    # task_dir = "./duck_in_bowls+0_new"
-    task_dir = "./2arms_open_pen_new"
-    data_id = "4"
-    # task_dir = "./play_around"
-    # data_id = "01"
+
+    task_dir = "./play_around"
+    data_id = "12"
     data = np.load( task_dir + "/" + data_id + ".npy", allow_pickle = True)
 
-    make_video = False
+    make_video = True
 
     cam_extrinsic = get_transform( [-0.13913296, 0.053, 0.43643044], [-0.63127772, 0.64917582, -0.31329509, 0.28619116])
+    cam_intrinsic_np = np.array([
+        [734.1779174804688, 0., 993.6226806640625],
+        [0. ,734.1779174804688,  551.8895874023438],
+        [0., 0., 1.0]
+    ])
+
     o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 734.1779174804688, 734.1779174804688, 993.6226806640625, 551.8895874023438)
 
     # for point in data:
@@ -204,8 +220,7 @@ def main():
         rgb = bgr[...,::-1].copy()
 
         # for _ in range(2):
-        if make_video:
-            video_images.append(bgr)
+
 
         depth = point['depth']
         # depth = depth.reshape(-1,3)
@@ -231,16 +246,27 @@ def main():
 
         left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
         right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
-        # print("left_ee: ",point['left_ee'][0:3])
-        print("right: ",point['right_ee'][0:3])        
+      
 
-        left_transform = left_transform @ get_transform( [ 0.00, 0.00, -0.005], [0., 0., 0., 1.] )
-
+        left_transform = left_transform @ get_transform( [ 0.00, 0.00, 0.0], [0., 0., 0., 1.] )
+        
         right_transform = right_transform @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
-        visualize_pcd(final_pcd, [left_transform], [right_transform])
-        # print("left: ", )
-        # print("right: ", inv(get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) ))        
-        # print("right: ", point['right_ee'])
+        # visualize_pcd(final_pcd, [left_transform], [right_transform])
+
+ 
+        assigned_color = np.array([0,0,255])
+        point_3d = np.array( [ left_transform[0][3], left_transform[1][3], left_transform[2][3] ])
+        # point_3d = np.array( [ 0.2, 0.0, 0.2])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+
+        point_3d = np.array( [ right_transform[0][3], right_transform[1][3], right_transform[2][3] ])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+        bgr[0:100,0:100] = 0
+        # print("bgr: ", bgr.shape)
+        if make_video:
+            video_images.append(bgr)
+        
+
 
     if make_video:
         video_name = 'video{}.avi'.format(data_id)

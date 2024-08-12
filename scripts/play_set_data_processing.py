@@ -465,14 +465,14 @@ def main():
 
             for point in data:
                 # left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
-                # left_transform = left_transform @ get_transform( [ 0.00, 0.00, -0.005], [0., 0., 0., 1.] )
+                # left_transform = left_transform @ get_transform( [ 0.00, 0.01, 0.0], [0., 0., 0., 1.] )
                 # left_rot = Rotation.from_matrix(left_transform[:3,:3])
                 # left_quat = left_rot.as_quat()
                 # left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min )
                 # left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
                 right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )
-                right_transform = right_transform @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
+                right_transform = right_transform @ get_transform( [0.035, 0.00, 0.01], [0., 0., 0., 1.] )
                 right_rot = Rotation.from_matrix(right_transform[:3,:3])
                 right_quat = right_rot.as_quat()
                 right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min )
