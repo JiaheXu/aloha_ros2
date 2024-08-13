@@ -139,7 +139,7 @@ class DataCollector(Node):
         right_t.header.frame_id = 'world'
         right_t.child_frame_id = "follower_right/base_link"
         right_t.transform.translation.x = 0.0
-        right_t.transform.translation.y = -0.345
+        right_t.transform.translation.y = -0.315
         right_t.transform.translation.z = 0.0
         right_t.transform.rotation.x = 0.0
         right_t.transform.rotation.y = 0.0
