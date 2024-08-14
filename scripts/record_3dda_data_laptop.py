@@ -99,10 +99,10 @@ class DataCollector(Node):
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        # self.bgr_sub = Subscriber(self, Image, "/camera_1/left_image")
-        # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
-        self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/left/image_rect_color")
-        self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered" )
+        self.bgr_sub = Subscriber(self, Image, "/camera_1/left_image")
+        self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
+        #self.bgr_sub = Subscriber(self, Image, "/zed/zed_node/left/image_rect_color")
+        #self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered" )
         self.left_hand_sub = Subscriber(self, JointState, "/follower_left/joint_states")
         self.right_hand_sub = Subscriber(self, JointState, "/follower_right/joint_states")
 

@@ -1,4 +1,0 @@
-01 right hand move
-02 right hand move
-03 left hand move
-04 left hand move

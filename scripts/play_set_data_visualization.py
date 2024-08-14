@@ -183,8 +183,9 @@ def project_color( point_3d, color, image, extrinsic, intrinsic):
 def main():
     
 
-    task_dir = "./play_around"
-    data_id = "12"
+    # task_dir = "./play_around"
+    task_dir = "./"
+    data_id = "test"
     data = np.load( task_dir + "/" + data_id + ".npy", allow_pickle = True)
 
     make_video = True
@@ -215,6 +216,7 @@ def main():
     #     print(pcd)
     #     visualize_pcd(pcd)
     video_images = []
+    # print("wtf")
     for point in data:
         bgr = point['bgr']
         rgb = bgr[...,::-1].copy()
@@ -235,7 +237,7 @@ def main():
         im_color = o3d.geometry.Image(rgb)
         im_depth = o3d.geometry.Image(depth)
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            im_color, im_depth, depth_scale=1, depth_trunc=2, convert_rgb_to_intensity=False)
+            im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
         
         final_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
                 rgbd,
@@ -249,7 +251,6 @@ def main():
       
 
         left_transform = left_transform @ get_transform( [ 0.00, 0.00, 0.0], [0., 0., 0., 1.] )
-        
         right_transform = right_transform @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
         # visualize_pcd(final_pcd, [left_transform], [right_transform])
 
@@ -261,7 +262,26 @@ def main():
 
         point_3d = np.array( [ right_transform[0][3], right_transform[1][3], right_transform[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
-        bgr[0:100,0:100] = 0
+
+        # left tips
+        left_tip = get_transform(point['lh_grippers'][0, 0:3], point['lh_grippers'][0,3:7] )
+        right_tip = get_transform(point['lh_grippers'][1, 0:3], point['lh_grippers'][1,3:7] )
+        point_3d = np.array( [ left_tip[0][3], left_tip[1][3], left_tip[2][3] ])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+        point_3d = np.array( [ right_tip[0][3], right_tip[1][3], right_tip[2][3] ])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+
+
+        # right tips
+        left_tip = get_transform(point['rh_grippers'][0, 0:3], point['rh_grippers'][0,3:7] )
+        right_tip = get_transform(point['rh_grippers'][1, 0:3], point['rh_grippers'][1,3:7] )
+        point_3d = np.array( [ left_tip[0][3], left_tip[1][3], left_tip[2][3] ])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+        point_3d = np.array( [ right_tip[0][3], right_tip[1][3], right_tip[2][3] ])
+        bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
+        # bgr[0:100,0:100] = 0
+
+        # bgr[0:100,0:100] = 0
         # print("bgr: ", bgr.shape)
         if make_video:
             video_images.append(bgr)
@@ -271,7 +291,7 @@ def main():
     if make_video:
         video_name = 'video{}.avi'.format(data_id)
         height, width, layers = video_images[0].shape
-        video = cv2.VideoWriter(video_name, 0, 1, (width,height))
+        video = cv2.VideoWriter(video_name, 0, 15, (width,height))
         for image in video_images:
             video.write(image)
         video.release()
