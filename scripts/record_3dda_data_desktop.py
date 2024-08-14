@@ -237,39 +237,39 @@ class DataCollector(Node):
         # fingers
         try:
             self.lh_gripper_left_transform = self.tf_buffer.lookup_transform(
-                    self.left_base_frame,
+                    self.left_hand_frame,
                     self.left_hand_gripper_frames[0],
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
             self.lh_gripper_right_transform = self.tf_buffer.lookup_transform(
-                    self.left_base_frame,
+                    self.left_hand_frame,
                     self.left_hand_gripper_frames[1],
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform {self.left_base_frame} to its fingers: {ex}'
+                f'Could not transform {self.left_hand_frame} to its fingers: {ex}'
             )
             return
 
         try:
             self.rh_gripper_left_transform = self.tf_buffer.lookup_transform(
-                    self.right_base_frame,
+                    self.right_hand_frame,
                     self.right_hand_gripper_frames[0],
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
             self.rh_gripper_right_transform = self.tf_buffer.lookup_transform(
-                    self.right_base_frame,
+                    self.right_hand_frame,
                     self.right_hand_gripper_frames[1],
                     bgr.header.stamp,
                     timeout=rclpy.duration.Duration(seconds=0.01)
                 )
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform {self.right_base_frame} to its fingers: {ex}'
+                f'Could not transform {self.right_hand_frame} to its fingers: {ex}'
             )
             return
 

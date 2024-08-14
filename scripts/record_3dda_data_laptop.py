@@ -39,6 +39,9 @@ class DataCollector(Node):
         # Declare and acquire `target_frame` parameter
         self.left_hand_frame = "follower_left/ee_gripper_link"
         self.right_hand_frame = "follower_right/ee_gripper_link"
+
+        self.left_hand_gripper_frames = ["follower_left/left_finger_link", "follower_left/right_finger_link"]
+        self.right_hand_gripper_frames = ["follower_right/left_finger_link", "follower_right/right_finger_link"]
         # self.left_base_frame = "follower_left/base_link"
         # self.right_base_frame = "follower_right/base_link"
         self.left_base_frame = "world"
@@ -95,7 +98,7 @@ class DataCollector(Node):
 
         queue_size = 1000
         max_delay = 0.01 #10ms
-        self.time_diff = 1.0
+        self.time_diff = 0.05
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
@@ -173,6 +176,19 @@ class DataCollector(Node):
         # self.tf_broadcaster.sendTransform(cam_t)
 
     # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
+    def transform_to_numpy(self, ros_transformation):
+        x = ros_transformation.transform.translation.x
+        y = ros_transformation.transform.translation.y
+        z = ros_transformation.transform.translation.z
+        
+        qx = ros_transformation.transform.rotation.x
+        qy = ros_transformation.transform.rotation.y
+        qz = ros_transformation.transform.rotation.z
+        qw = ros_transformation.transform.rotation.w
+
+        return np.array( [x, y, z, qx, qy, qz, qw] )
+
+    # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
     def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
@@ -213,34 +229,73 @@ class DataCollector(Node):
                 f'Could not transform {self.right_base_frame} to {self.right_hand_frame}: {ex}'
             )
             return
-        
-        left_x = self.left_hand_transform.transform.translation.x
-        left_y = self.left_hand_transform.transform.translation.y
-        left_z = self.left_hand_transform.transform.translation.z
-        left_qx = self.left_hand_transform.transform.rotation.x
-        left_qy = self.left_hand_transform.transform.rotation.y
-        left_qz = self.left_hand_transform.transform.rotation.z
-        left_qw = self.left_hand_transform.transform.rotation.w
 
-        right_x = self.right_hand_transform.transform.translation.x
-        right_y = self.right_hand_transform.transform.translation.y
-        right_z = self.right_hand_transform.transform.translation.z
-        right_qx = self.right_hand_transform.transform.rotation.x
-        right_qy = self.right_hand_transform.transform.rotation.y
-        right_qz = self.right_hand_transform.transform.rotation.z
-        right_qw = self.right_hand_transform.transform.rotation.w
+        # fingers
+        try:
+            self.lh_gripper_left_transform = self.tf_buffer.lookup_transform(
+                    self.left_hand_frame,
+                    self.left_hand_gripper_frames[0],
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+            self.lh_gripper_right_transform = self.tf_buffer.lookup_transform(
+                    self.left_hand_frame,
+                    self.left_hand_gripper_frames[1],
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.left_hand_frame} to its fingers: {ex}'
+            )
+            return
+
+        try:
+            self.rh_gripper_left_transform = self.tf_buffer.lookup_transform(
+                    self.right_hand_frame,
+                    self.right_hand_gripper_frames[0],
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+            self.rh_gripper_right_transform = self.tf_buffer.lookup_transform(
+                    self.right_hand_frame,
+                    self.right_hand_gripper_frames[1],
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.right_hand_frame} to its fingers: {ex}'
+            )
+            return
+
+
+
+        left_hand = self.transform_to_numpy( self.left_hand_transform )
+        right_hand = self.transform_to_numpy( self.right_hand_transform )
+
+
+        lh_grippers = [ self.transform_to_numpy( self.lh_gripper_left_transform ), self.transform_to_numpy( self.lh_gripper_right_transform ) ]
+        rh_grippers = [ self.transform_to_numpy( self.rh_gripper_left_transform ), self.transform_to_numpy( self.rh_gripper_right_transform ) ]
 
         current_state = {}
         current_state["timestamp"] = data_time
-        current_state["left_ee"] = np.array([left_x, left_y, left_z, left_qx, left_qy, left_qz, left_qw])
-        current_state["right_ee"] = np.array([right_x, right_y, right_z, right_qx, right_qy, right_qz, right_qw])
+        current_state["left_ee"] = left_hand
+        current_state["right_ee"] = right_hand
+
         current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3] # Todo check bgr order
-        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth)) 
+        current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth, desired_encoding="mono16"))
+        
+        print("depth min:", np.min(current_state["depth"]))
+        print("depth max:", np.max(current_state["depth"]))
+
         current_state["left_pos"] = np.array(left_hand_joints.position) 
         current_state["left_vel"] = np.array(left_hand_joints.velocity) 
         current_state["right_pos"] = np.array(right_hand_joints.position) 
-        current_state["right_vel"] = np.array(right_hand_joints.velocity) 
+        current_state["right_vel"] = np.array(right_hand_joints.velocity)
 
+        current_state["lh_grippers"] = np.array(lh_grippers) 
+        current_state["rh_grippers"] = np.array(rh_grippers) 
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         # print("right: ", self.right_hand_transform)
