@@ -185,7 +185,7 @@ def main():
 
     # task_dir = "./play_around"
     task_dir = "./"
-    data_id = "left"
+    data_id = "test"
     data = np.load( task_dir + "/" + data_id + ".npy", allow_pickle = True)
 
     make_video = True
@@ -219,7 +219,7 @@ def main():
     # print("wtf")
     for idx, point in enumerate( data, 0 ):
 
-        if(idx % 20 != 0):
+        if(idx < 50):
             continue
 
         bgr = point['bgr']
@@ -268,10 +268,8 @@ def main():
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
 
         # left tips
-        lh_left_tip = left_transform @ get_transform(point['lh_grippers'][0, 0:3], point['lh_grippers'][0,3:7] )
-        lh_right_tip = left_transform @ get_transform(point['lh_grippers'][1, 0:3], point['lh_grippers'][1,3:7] )
-        print("left_hand trans: tip_l: ", point['lh_grippers'][0, 1])
-
+        lh_left_tip = get_transform( [0.05, 0.00, 0.0], [0., 0., 0., 1.] ) @ get_transform(point['lh_grippers'][0, 0:3], point['lh_grippers'][0,3:7] )
+        lh_right_tip = get_transform( [0.05, 0.00, 0.0], [0., 0., 0., 1.] ) @ get_transform(point['lh_grippers'][1, 0:3], point['lh_grippers'][1,3:7] )
         point_3d = np.array( [ lh_left_tip[0][3], lh_left_tip[1][3], lh_left_tip[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
         point_3d = np.array( [ lh_right_tip[0][3], lh_right_tip[1][3], lh_right_tip[2][3] ])
@@ -279,12 +277,8 @@ def main():
 
 
         # right tips
-        rh_left_tip =  right_transform @ get_transform(point['rh_grippers'][0, 0:3], point['rh_grippers'][0,3:7] )
-        rh_right_tip =  right_transform @ get_transform(point['rh_grippers'][1, 0:3], point['rh_grippers'][1,3:7] )
-        # print("right_hand trans: tip_l: ", point['rh_grippers'][0, 1])
-        # print("right_hand trans: tip_r: ", point['rh_grippers'][1, 1])
-
-
+        rh_left_tip = get_transform( [0.1, 0.00, 0.0], [0., 0., 0., 1.] ) @ get_transform(point['rh_grippers'][0, 0:3], point['rh_grippers'][0,3:7] ) @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
+        rh_right_tip = get_transform( [0.1, 0.00, 0.0], [0., 0., 0., 1.] ) @ get_transform(point['rh_grippers'][1, 0:3], point['rh_grippers'][1,3:7] ) @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
         point_3d = np.array( [ rh_left_tip[0][3], rh_left_tip[1][3], rh_left_tip[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
         point_3d = np.array( [ rh_right_tip[0][3], rh_right_tip[1][3], rh_right_tip[2][3] ])
