@@ -261,7 +261,7 @@ def main():
         right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
       
 
-        left_transform = left_transform @ get_transform( [ -0.052, 0.005, 0.005], [0., 0., 0., 1.] )
+        left_transform = left_transform @ get_transform( [ -0.05, 0.005, 0.005], [0., 0., 0., 1.] )
 
 
         right_transform = right_transform @ get_transform( [-0.05, -0.005, -0.005], [0., 0., 0., 1.] )
