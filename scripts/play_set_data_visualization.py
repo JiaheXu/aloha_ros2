@@ -216,17 +216,24 @@ def main():
     #     print(pcd)
     #     visualize_pcd(pcd)
     video_images = []
-    # print("wtf")
+
+    max_diff = 0.065
+    left_min_joint = 0.638
+    left_max_joint = 1.626
+
+    right_min_joint = 0.625
+    right_max_joint = 1.610
+
+
     for idx, point in enumerate( data, 0 ):
 
-        if(idx % 20 != 0):
-            continue
+        # if(idx < 100):
+        #     continue
+        # if(idx % 20 != 0):
+        #     continue
 
         bgr = point['bgr']
         rgb = bgr[...,::-1].copy()
-
-        # for _ in range(2):
-
 
         depth = point['depth']
         # depth = depth.reshape(-1,3)
@@ -254,24 +261,33 @@ def main():
         right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
       
 
-        left_transform = left_transform @ get_transform( [ 0.00, 0.00, 0.0], [0., 0., 0., 1.] )
-        right_transform = right_transform @ get_transform( [0.00, 0.00, -0.005], [0., 0., 0., 1.] )
-        # 
+        left_transform = left_transform @ get_transform( [ -0.052, 0.005, 0.005], [0., 0., 0., 1.] )
+
+
+        right_transform = right_transform @ get_transform( [-0.05, -0.005, -0.005], [0., 0., 0., 1.] )
 
  
         assigned_color = np.array([0,0,255])
         point_3d = np.array( [ left_transform[0][3], left_transform[1][3], left_transform[2][3] ])
-        # point_3d = np.array( [ 0.2, 0.0, 0.2])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
 
         point_3d = np.array( [ right_transform[0][3], right_transform[1][3], right_transform[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
 
-        # left tips
-        lh_left_tip = left_transform @ get_transform(point['lh_grippers'][0, 0:3], point['lh_grippers'][0,3:7] )
-        lh_right_tip = left_transform @ get_transform(point['lh_grippers'][1, 0:3], point['lh_grippers'][1,3:7] )
-        print("left_hand trans: tip_l: ", point['lh_grippers'][0, 1])
+        # visualize_pcd(final_pcd, [left_transform], [right_transform])
 
+        # left tips
+        openness = np.clip( point["left_pos"][6], left_min_joint, left_max_joint)
+        left_gripper_distance = (openness - left_min_joint) / (left_max_joint - left_min_joint) * max_diff / 2.0
+        left_y = left_gripper_distance
+        right_y = -1*left_gripper_distance
+        lh_left_tip = left_transform @ get_transform([0.09, left_y, 0.], [0., 0., 0., 1.] )
+        lh_right_tip = left_transform @ get_transform([0.09, right_y, 0.0], [0., 0., 0., 1.]  )
+        # print("difference: ", left_y - right_y)
+        # max_diff = max(max_diff, left_y - right_y)
+        # min_joint = min(min_joint, point["left_pos"][6])
+        # max_joint = max(max_joint, point["left_pos"][6])
+        # visualize_pcd(final_pcd, [left_transform, lh_left_tip, lh_right_tip], [right_transform])
         point_3d = np.array( [ lh_left_tip[0][3], lh_left_tip[1][3], lh_left_tip[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
         point_3d = np.array( [ lh_right_tip[0][3], lh_right_tip[1][3], lh_right_tip[2][3] ])
@@ -279,28 +295,31 @@ def main():
 
 
         # right tips
-        rh_left_tip =  right_transform @ get_transform(point['rh_grippers'][0, 0:3], point['rh_grippers'][0,3:7] )
-        rh_right_tip =  right_transform @ get_transform(point['rh_grippers'][1, 0:3], point['rh_grippers'][1,3:7] )
-        # print("right_hand trans: tip_l: ", point['rh_grippers'][0, 1])
-        # print("right_hand trans: tip_r: ", point['rh_grippers'][1, 1])
-
-
+        openness = np.clip( point["right_pos"][6], right_min_joint, right_max_joint)
+        right_gripper_distance = (openness - right_min_joint) / (right_max_joint - right_min_joint) * max_diff / 2.0
+        left_y = right_gripper_distance
+        right_y = -1*right_gripper_distance
+        rh_left_tip = right_transform @ get_transform([0.09, left_y, 0.], [0., 0., 0., 1.] )
+        rh_right_tip = right_transform @ get_transform([0.09, right_y, 0.0], [0., 0., 0., 1.]  )
+        # print("difference: ", left_y - right_y)
+        # max_diff = max(max_diff, left_y - right_y)
+        # min_joint = min(min_joint, point["left_pos"][6])
+        # max_joint = max(max_joint, point["left_pos"][6])
+        # visualize_pcd(final_pcd, [left_transform], [right_transform, rh_left_tip, rh_right_tip])
         point_3d = np.array( [ rh_left_tip[0][3], rh_left_tip[1][3], rh_left_tip[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
         point_3d = np.array( [ rh_right_tip[0][3], rh_right_tip[1][3], rh_right_tip[2][3] ])
         bgr = project_color(point_3d, assigned_color, bgr, inv(cam_extrinsic), cam_intrinsic_np)
         
         
-        visualize_pcd(final_pcd, [left_transform, lh_left_tip, lh_right_tip], [right_transform, rh_left_tip, rh_right_tip])
+        # visualize_pcd(final_pcd, [left_transform, lh_left_tip, lh_right_tip], [right_transform, rh_left_tip, rh_right_tip])
 
-        # bgr[0:100,0:100] = 0
-
-        # bgr[0:100,0:100] = 0
-        # print("bgr: ", bgr.shape)
         if make_video:
             video_images.append(bgr)
         
-
+    # print("max_diff: ", max_diff)
+    # print("min_joint: ", min_joint)
+    # print("max_joint: ", max_joint)
 
     if make_video:
         video_name = 'video{}.avi'.format(data_id)

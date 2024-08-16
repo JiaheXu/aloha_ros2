@@ -290,8 +290,8 @@ class DataCollector(Node):
         current_state["bgr"] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3] # Todo check bgr order
         current_state["depth"] = np.array(self.br.imgmsg_to_cv2(depth, desired_encoding="mono16"))
         
-        print("depth min:", np.min(current_state["depth"]))
-        print("depth max:", np.max(current_state["depth"]))
+        # print("depth min:", np.min(current_state["depth"]))
+        # print("depth max:", np.max(current_state["depth"]))
 
         current_state["left_pos"] = np.array(left_hand_joints.position) 
         current_state["left_vel"] = np.array(left_hand_joints.velocity) 
