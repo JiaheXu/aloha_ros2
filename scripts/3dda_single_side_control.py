@@ -29,6 +29,10 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 
 
+from rclpy.duration import Duration
+from rclpy.constants import S_TO_NS
+CONTROL_DT = 0.0
+CONTROL_DT_DURATION = Duration(seconds=0, nanoseconds= CONTROL_DT * S_TO_NS)
 
 def get_transform( t_7d ):
     t = np.eye(4)
@@ -109,14 +113,11 @@ def press_to_start(
 
 def main() -> None:
     node = create_interbotix_global_node('aloha')
-    # follower_bot_left = InterbotixManipulatorXS(
-    #     robot_model='vx300s',
-    #     robot_name='follower_left',
-    #     node=node,
-    #     iterative_update_fk=False,
-    # )
+
     follower_bot_right = InterbotixManipulatorXS(
         robot_model='vx300s',
+        group_name='arm',
+        gripper_name='gripper',
         robot_name='follower_right',
         node=node,
         iterative_update_fk=False,
@@ -124,8 +125,8 @@ def main() -> None:
 
     robot_startup(node)
 
-    opening_ceremony(
-
+    opening_ceremony
+    (
         follower_bot_right,
     )
 
@@ -136,28 +137,44 @@ def main() -> None:
     gripper_right_command = JointSingleCommand(name='gripper')
 
     # todo, change this to ROS
-    action = np.load("ep2_action.npy", allow_pickle = True)
-    action = action.reshape(-1,8)
-    length = action.shape[0]
+    episode = np.load("rightonly1.npy", allow_pickle = True)
     
-    length = 1
-    test = np.array([0.4, 0., 0.4, 0., 0., 0., 1.,0.] ) 
-    # while rclpy.ok():
+    action = []
+    for data_point in episode:
+        print("right_ee", data_point["right_ee"].shape)
+        print("right_pos: ", data_point["right_pos"].shape)
+        gripper = data_point["right_pos"][6]
+        print("gripper: ", gripper)
+        ee = data_point["right_ee"]
+        action_with_gripper = np.append(ee,[gripper])
+        # print( np.append(ee,[gripper]) )
+
+        action.append( action_with_gripper )
+    action = np.array( action )
+    action.reshape(-1,8)
+    print("action: ", action.shape)
+
+    length = action.shape[0]
+    action[:, 1] += 0.315
+
+    # print("action: ", action)
     idx = 0
     while( idx < length):
-        T_sd = get_transform( test[0:7])
-        right_gripper = un_normalize_gripper( test[7] )
+        print("in loop")
+        T_sd = get_transform( action[idx][0:7])
+        right_gripper = un_normalize_gripper( action[idx][7] )
+        print("right_gripper: ", right_gripper)
         gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
             right_gripper
         )
-        
-        # follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
-
+        print()
 
         follower_bot_right.arm.set_ee_pose_matrix(T_sd)
         follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
         # sleep DT
-        get_interbotix_global_node().get_clock().sleep_for(DT_DURATION)
+        get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
+        idx +=1
+
     print("finished !!!!!!!!!!" )
     robot_shutdown(node)
 

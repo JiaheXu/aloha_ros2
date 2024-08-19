@@ -182,10 +182,16 @@ def project_color( point_3d, color, image, extrinsic, intrinsic):
     return image
 def main():
     
-
+    parser = argparse.ArgumentParser(description="extract interested object and traj from rosbag")
+    # parser.add_argument("-b", "--bag_in", default="./data/yellow_handle_mug.bag",  help="Input ROS bag name.")
+    parser.add_argument("-t", "--task_dir", default="./play_set_dataset",  help="Input ROS bag name.")
+    parser.add_argument("-d", "--data_id", default="1", help="data idx")
+    args = parser.parse_args()
+    
     # task_dir = "./play_around"
-    task_dir = "./"
-    data_id = "left"
+    task_dir = args.task_dir
+    data_id = args.data_id
+    print("processing data: ", data_id)
     data = np.load( task_dir + "/" + data_id + ".npy", allow_pickle = True)
 
     make_video = True
@@ -260,11 +266,12 @@ def main():
         left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
         right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
       
+        # play set
+        left_transform = left_transform @ get_transform( [ -0.055, 0.015, -0.005], [0., 0., 0., 1.] )
+        right_transform = right_transform @ get_transform( [-0.05, -0.005, -0.01], [0., 0., 0., 1.] )
 
-        left_transform = left_transform @ get_transform( [ -0.055, 0.005, 0.005], [0., 0., 0., 1.] )
-
-
-        right_transform = right_transform @ get_transform( [-0.05, -0.005, -0.005], [0., 0., 0., 1.] )
+        # left_transform = left_transform @ get_transform( [ -0.075, 0.005,  -0.005], [0., 0., 0., 1.] )
+        # right_transform = right_transform @ get_transform( [-0.05, 0.005, -0.005], [0., 0., 0., 1.] )
 
  
         assigned_color = np.array([0,0,255])
