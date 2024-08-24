@@ -1,4 +1,4 @@
-for i in $(seq 6 42);
+for i in $(seq 1 42);
 do
-    python3 handover_data_visualization.py -t "plate" -d $i
+    python3 data_processing_bimanual.py -t plate -d $i
 done
