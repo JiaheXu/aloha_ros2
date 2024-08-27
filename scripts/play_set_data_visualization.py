@@ -263,8 +263,8 @@ def main():
         final_pcd = final_pcd.transform(cam_extrinsic)
         mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
 
-        left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
-        right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] ) 
+        left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] ) # xyz, xyzw(quat)
+        right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )  # right hand palm
       
         # play set
         left_transform = left_transform @ get_transform( [ -0.055, 0.015, -0.005], [0., 0., 0., 1.] )
@@ -302,7 +302,7 @@ def main():
 
 
         # right tips
-        openness = np.clip( point["right_pos"][6], right_min_joint, right_max_joint)
+        openness = np.clip( point["right_pos"][6], right_min_joint, right_max_joint) # joint positions
         right_gripper_distance = (openness - right_min_joint) / (right_max_joint - right_min_joint) * max_diff / 2.0
         left_y = right_gripper_distance
         right_y = -1*right_gripper_distance
