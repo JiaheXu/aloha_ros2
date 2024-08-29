@@ -38,8 +38,8 @@ def roundup_pi(current_joint, next_steps):
 
 def RRcontrol(gdesired, q, K):
 
-    dist_threshold = 0.5
-    angle_threshold = (1.0*np.pi)/180
+    dist_threshold = 0.05 # m
+    angle_threshold = (5.0*np.pi)/180 # rad
     Tstep = 0.2
     maxiter = 1000
     current_q = copy.deepcopy(q)
@@ -54,30 +54,33 @@ def RRcontrol(gdesired, q, K):
         J = BodyJacobian(current_q)
 
         current_q = current_q - K * Tstep * np.linalg.pinv(J) @ xi
-        finalerr = -1
+
         J = BodyJacobian(current_q)
+        finalerr = (LA.norm(xi[0:3]), LA.norm(xi[3:6]))
+        # translation_err = LA.norm(xi[0:3])
+        # rotation_err = LA.norm(xi[3:6])
 
         if abs(np.linalg.det(J))<0.001:
-            print('Singularity position')
+            # print('Singularity position')
             current_q = current_q + 0.01
-            finalerr = -1
-            break
+            # finalerr = -1
+            # break
         
-        if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :
-            finalerr = LA.norm(xi[0:3])*10
-            print('Convergence achieved. Final error: {} cm'.format( finalerr) )
+        if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :   
             break;
+    
     end = time.time()
+    print('Convergence achieved. Final error: {} cm     {}  rad'.format( finalerr[0]*10, finalerr[1]) )
     print("time cost: ", end - start)
-    return current_q, finalerr
+    success = False
+    if(finalerr[0] < dist_threshold and finalerr[1] < angle_threshold):
+        success = True
+    return current_q, finalerr, success
 
 def custom_ik( goal_ee_7D, current_joints, debug=False ):
     goal_transform = get_transform(goal_ee_7D)
     K = 0.8
-    success = False
-    result_q, finalerr =  RRcontrol(goal_transform, current_joints, K)
-    if(finalerr != -1):
-        success = True
+    result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K)
 
     # print("FwdKin: ", FwdKin(result_q))
     # print("Goal: ",goal_transform)
@@ -85,7 +88,7 @@ def custom_ik( goal_ee_7D, current_joints, debug=False ):
 
 def main() -> None:
    
-    episode = np.load("2.npy", allow_pickle = True)
+    episode = np.load("3.npy", allow_pickle = True)
 
     urdf_filename = (
         "../urdf/vx300s.urdf"
@@ -131,12 +134,17 @@ def main() -> None:
             print("err: ", err)
             print("gt: ", data_point['right_pos'])
             print("trans: ", get_transform( data_point['right_ee'] ) )
+            # last_joints = 
             # print("")
         else:
             total_success += 1
+            last_joints = ik_result
+
         joints = data_point["right_pos"][0:6]
         # print("joint diff: ", np.abs(last_joints_np - joints))
-        last_joints = np.array( joints )
+        
+        # last_joints = np.array( joints )
+
         # print("EE: ", joints[-1])
         # print("Goal: ", data_point["right_ee"][0:3])
     print("success: {} / {} ".format(str( total_success ), str( len(episode))) )
