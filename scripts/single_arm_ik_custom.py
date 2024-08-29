@@ -35,114 +35,12 @@ def roundup_pi(current_joint, next_steps):
         rounded_result.append(rouneded)
     return rounded_result
 
-def get_ik(
-    model, data, goal_ee_7D, current_joints,
-    debug = False
-) -> list:
-    # solve ik, 6dof, gripper not included
-    eps = 1e-3
-    IT_MAX = 1000
-    DT = 1e-1
-    damp = 1e-12
-
-    JOINT_ID = 7
-
-    goal_transform = get_transform(goal_ee_7D)
-    rot = goal_transform[0:3, 0:3]
-    trans = goal_transform[0:3, 3]
-    oMdes = pinocchio.SE3( rot, trans)
-    # print("oMdes: ", oMdes)
-    start = time.time()
-    q = copy.deepcopy( current_joints )
-    q.append(0.0)
-    q.append(0.0)
-    q = np.array(q)
-
-    # q = pinocchio.neutral(model)
-    i = 0
-    err = None
-    while True:
-        # forward_start = time.time()
-        pinocchio.forwardKinematics(model, data, q)
-        # forward_end = time.time()
-
-        # print("foward: ", forward_end - forward_start)
-        iMd = data.oMi[JOINT_ID].actInv(oMdes)
-        err = pinocchio.log(iMd).vector  # in joint frame
-        # print("err: ", err.shape)
-        if norm(err) < eps:
-            success = True
-            break
-        if i >= IT_MAX:
-            success = False
-            break
-        J = pinocchio.computeJointJacobian(model, data, q, JOINT_ID)  # in joint frame
-        # print("J:", J.shape) # (6, 7)
-        J = -np.dot(pinocchio.Jlog6(iMd.inverse()), J)
-        # print("J:", J.shape) # (6, 7)
-
-        v = -J.T.dot(solve(J.dot(J.T) + damp * np.eye(6), err)) # original method
-        q = pinocchio.integrate(model, q, v * DT)
-        
-        if not (i % 10) and debug:
-            print("%d: error = %s" % (i, err.T))
-        i += 1
-    end = time.time()
-    
-    # if debug:
-    print("total time: ", end - start)
-    # q = q[0:-2]
-    # q = roundup_pi(current_joints, q)
-
-    joints = []
-    
-    for name, oMi in zip(model.names, data.oMi):
-        # joints.append( [*oMi.rotation] )
-        joints.append( oMi )
-
-    rot = (Rotation.from_matrix( goal_transform[0:3, 0:3]) )
-    
-    result_quat = pinocchio.Quaternion(joints[-1].rotation).coeffs()
-    result_rot = (Rotation.from_quat(result_quat) )
-
-    dot_result = result_rot.as_quat() * rot.as_quat()
-    rotation_err = abs (1.0 - abs( dot_result[3] ) )
-
-    if(rotation_err < 0.3 and np.sum( err[0:3] ) < 3*eps ):
-        success = True
-    else:
-        print("rotation_err: ", rotation_err)
-        print("translate: ", np.sum( err[0:3] ))
-        # print("dot_result: ", dot_result)
-        # debug = True
-        print("goal: ", goal_transform)
-        print("current_joints: ", current_joints)
-        # print("result: ", joints[-1].translation)
-        # print("err: ", err)
-
-    if debug:
-        print("ik_result: ", q)
-        print("\nfinal error: %s" % err.T)
-        print("goal: ", goal_transform[0:3, 0:3])
-
-        print("matrix: ", joints[-1].homogeneous )
-        print("quat: ", pinocchio.Quaternion(joints[-1].rotation) )
-
-        result_quat = pinocchio.Quaternion(joints[-1].rotation).coeffs()
-        result_rot = (Rotation.from_quat(result_quat) )
-        print("result_rot: ", result_rot.as_matrix())
-        rot = (Rotation.from_matrix( goal_transform[0:3, 0:3]) )
-        print("original: ", rot.as_matrix())
-        print("difference: ", result_rot.as_matrix() @ (rot.as_matrix()).T)
-        print("are_equal: ", result_rot.as_quat() * rot.as_quat())
-    return q, err, success
-
 
 def RRcontrol(gdesired, q, K):
 
-    dist_threshold = 0.005
-    angle_threshold = (0.15*np.pi)/180
-    Tstep = 0.1
+    dist_threshold = 0.5
+    angle_threshold = (1.0*np.pi)/180
+    Tstep = 0.2
     maxiter = 1000
     current_q = copy.deepcopy(q)
     
@@ -160,13 +58,14 @@ def RRcontrol(gdesired, q, K):
         J = BodyJacobian(current_q)
 
         if abs(np.linalg.det(J))<0.001:
-            print('Singularity position \n')
+            print('Singularity position')
+            current_q = current_q + 0.01
             finalerr = -1
             break
         
         if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :
             finalerr = LA.norm(xi[0:3])*10
-            print('Convergence achieved. Final error: {} cm\n'.format( finalerr) )
+            print('Convergence achieved. Final error: {} cm'.format( finalerr) )
             break;
     end = time.time()
     print("time cost: ", end - start)
@@ -174,16 +73,19 @@ def RRcontrol(gdesired, q, K):
 
 def custom_ik( goal_ee_7D, current_joints, debug=False ):
     goal_transform = get_transform(goal_ee_7D)
-    K = 0.5
+    K = 0.8
     success = False
     result_q, finalerr =  RRcontrol(goal_transform, current_joints, K)
     if(finalerr != -1):
         success = True
+
+    # print("FwdKin: ", FwdKin(result_q))
+    # print("Goal: ",goal_transform)
     return result_q, finalerr, success
 
 def main() -> None:
    
-    episode = np.load("1.npy", allow_pickle = True)
+    episode = np.load("2.npy", allow_pickle = True)
 
     urdf_filename = (
         "../urdf/vx300s.urdf"
@@ -200,28 +102,44 @@ def main() -> None:
     #     [ -0.54758054,  0.61410053,  0.56836264,  0.14072071],
     #     [0.,          0.,          0.,          1.        ]
     #     ])
-    # K = 0.1
+
+    gdesired = np.array( [
+        [ 0.36335202, -0.01862422,  0.93146575,  0.34016989],
+        [ 0.57107482,  0.79440055, -0.20688479,  0.13208353],
+        [-0.73610384,  0.60710864,  0.29928287,  0.07789062],
+        [ 0.,          0.,          0.,          1.        ]]
+    )
+
+    K = 0.1
     # current_joints = np.array( [0.3190680146217346, -0.43411657214164734, 0.8789710402488708, 0.647339940071106, 0.26077672839164734, -0.5737088322639465])
     # ik_result, err = RRcontrol(gdesired, current_joints , K)
     # print("ik_result: ", ik_result)
     # print("err: ", err)    
 
+
+
+    total_success = 0
     # for data_point in episode[50:53]:
-    for data_point in episode:
+    for idx, data_point in enumerate( episode ):
         current_joints = last_joints
         data_point["right_ee"][1] += 0.315
-        
+        print("\nidx: ", idx)
         # ik_result, err, success = get_ik(  model, data, data_point["right_ee"], current_joints, debug=False )
         ik_result, err, success = custom_ik( data_point["right_ee"], current_joints, debug=False )
         if( success == False):
             print("failed !!!!!!!!!!!!")
             print("err: ", err)
+            print("gt: ", data_point['right_pos'])
+            print("trans: ", get_transform( data_point['right_ee'] ) )
+            # print("")
+        else:
+            total_success += 1
         joints = data_point["right_pos"][0:6]
         # print("joint diff: ", np.abs(last_joints_np - joints))
-        last_joints_np = np.array( joints )
+        last_joints = np.array( joints )
         # print("EE: ", joints[-1])
         # print("Goal: ", data_point["right_ee"][0:3])
-
+    print("success: {} / {} ".format(str( total_success ), str( len(episode))) )
     # print("finished !!!!!!!!!!" )
 
 
