@@ -455,20 +455,23 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         delta_left_trajectory = []
         delta_right_trajectory = []
 
-
+        eps = 1e-3
         for point in data[idx : idx + future_length]:
             left_transform = get_transform(point['left_ee'][0:3], point['left_ee'][3:7] )
             left_transform = left_transform @ left_bias
             left_rot = Rotation.from_matrix(left_transform[:3,:3])
             left_quat = left_rot.as_quat()
-            left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min )
+            left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min  + eps)
+            # print("range: ", left_gripper_max, " ", left_gripper_min)
+            print("left_openess: ", left_openess)
             left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
             right_transform = get_transform(point['right_ee'][0:3], point['right_ee'][3:7] )
             right_transform = right_transform @ right_bias
             right_rot = Rotation.from_matrix(right_transform[:3,:3])
             right_quat = right_rot.as_quat()
-            right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min )
+            right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min + eps)
+            print("right_openess: ", right_openess)
             right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
             
             # print("right_openess: ", right_openess)
@@ -511,19 +514,24 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         left_action = left_action.reshape(1,8)
         left_gripper = copy.deepcopy( left_trajectory[0])
         left_gripper = left_gripper.reshape(1,8)
-        left_trajectories = np.array(delta_left_trajectory)
+        # left_trajectories = np.array(delta_left_trajectory)
+
+        # use absolute pose
+        left_trajectories = np.array(left_trajectory[1:])
         left_trajectories = left_trajectories.reshape(-1,1,8)
 
-
+        
         delta_right_transform = get_transform(right_trajectory[-1][0:3], right_trajectory[-1][3:7]) @ inv( get_transform(right_trajectory[0][0:3], right_trajectory[0][3:7] ) )
         delat_right_rot = Rotation.from_matrix(delta_right_transform[:3,:3])
         delta_right_quat = delat_right_rot.as_quat()
         delta_right_openess = right_trajectory[-1][-1]
+
         right_action = np.array( [delta_right_transform[0][3], delta_right_transform[1][3], delta_right_transform[2][3], delta_right_quat[0], delta_right_quat[1], delta_right_quat[2], delta_right_quat[3], delta_right_openess] )
         right_action = right_action.reshape(1,8)
         right_gripper = copy.deepcopy( right_trajectory[0])
         right_gripper = right_gripper.reshape(1,8)
-        right_trajectories = np.array(delta_right_trajectory)
+        # right_trajectories = np.array(delta_right_trajectory)
+        right_trajectories = np.array(right_trajectory[1:])
         right_trajectories = right_trajectories.reshape(-1,1,8)
         # print("trajectories: ", trajectories.shape)
 
