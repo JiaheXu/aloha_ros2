@@ -5,6 +5,23 @@ import numpy as np
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 
+def project_point( point_3d, color, image, extrinsic, intrinsic, radius = 5):
+                
+    point4d = np.append(point_3d, 1)
+    new_point4d = np.matmul(extrinsic, point4d)
+    point3d = new_point4d[:-1]
+    zc = point3d[2]
+    new_point3d = np.matmul(intrinsic, point3d)
+    new_point3d = new_point3d/new_point3d[2]
+    u = int(round(new_point3d[0]))
+    v = int(round(new_point3d[1]))
+    if(v<0 or v>= image.shape[0] or u<0 or u>= image.shape[1]):
+        return image
+    
+    image[max(0, v-radius): min(v+radius, image.shape[0]), max(0, u-radius): min(u+radius, image.shape[1]) ] = color
+    # print("updated")
+    return image
+
 def cropping(xyz, rgb, bound_box, label = None):
 
     x = xyz[:,0]
@@ -32,7 +49,7 @@ def xyz_rgb_validation(rgb, xyz):
     rgb = (rgb/255.0).reshape(-1,3)
     valid_pcd.points = o3d.utility.Vector3dVector( xyz )
     valid_pcd.colors = o3d.utility.Vector3dVector( rgb )
-    visualize_pcd(valid_pcd)
+    # visualize_pcd(valid_pcd)
 
 def visualize_pcd_transform(pcd, left = None, right = None):
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
@@ -106,7 +123,10 @@ def visualize_pcd_delta_transform(pcd, start_ts = [], delta_transforms=[]):
     vis.destroy_window()
 
 
-def get_transform( trans, quat):
+def get_transform( transform_7d ):
+
+    trans = transform_7d[0:3]
+    quat = transform_7d[3:]
     t = np.eye(4)
     t[:3, :3] = Rotation.from_quat( quat ).as_matrix()
     t[:3, 3] = trans
