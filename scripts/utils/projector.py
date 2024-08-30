@@ -26,8 +26,9 @@ class Projector:
         depth = 10.0*np.ones((height, width), dtype = float)
         depth_uint = np.zeros((height, width), dtype=np.uint16)
         color = np.zeros((height, width, 3), dtype=np.uint8)
-        xyz =  np.full((height, width, 3), np.nan)
-        
+        # xyz =  np.full((height, width, 3), np.nan)
+        xyz =  np.zeros((height, width, 3), dtype = float)
+
         for i in range(0, self.n):
             point4d = np.append(self.points[i], 1)
             new_point4d = np.matmul(extrinsic, point4d)
@@ -54,4 +55,4 @@ class Projector:
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
             im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
         # return rgbd
-        return color, depth, xyz, rgbd
+        return color, depth, xyz, rgbd, depth_uint

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import linalg as LA
-from VECTORIZE import *
-from SKEW3 import *
+from math_tools.VECTORIZE import *
+from math_tools.SKEW3 import *
 from numpy.linalg import inv
 
 def getXi(g):

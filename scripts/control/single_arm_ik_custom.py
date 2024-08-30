@@ -7,7 +7,6 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 from sys import argv
 from os.path import dirname, join, abspath
-import pinocchio
 import time
 from numpy.linalg import norm, solve
 import copy
@@ -16,8 +15,10 @@ from BodyJacobian import *
 from numpy.linalg import inv
 from numpy import linalg as LA
 from scipy.linalg import expm, sinm, cosm
-from FwdKin import *
-from getXi import *
+from math_tools.FwdKin import *
+from math_tools.getXi import *
+from math_tools.RRcontrol  import *
+
 def get_transform( t_7d ):
     t = np.eye(4)
     trans = t_7d[0:3]
@@ -35,48 +36,6 @@ def roundup_pi(current_joint, next_steps):
         rounded_result.append(rouneded)
     return rounded_result
 
-
-def RRcontrol(gdesired, q, K):
-
-    dist_threshold = 0.05 # m
-    angle_threshold = (5.0*np.pi)/180 # rad
-    Tstep = 0.2
-    maxiter = 1000
-    current_q = copy.deepcopy(q)
-    
-    current_q = current_q.reshape(6,1)
-    start = time.time()
-    for i in range(maxiter):
-        gst = FwdKin(current_q)
-        err = inv(gdesired) @ gst
-        xi = getXi(err)
-        
-        J = BodyJacobian(current_q)
-
-        current_q = current_q - K * Tstep * np.linalg.pinv(J) @ xi
-
-        J = BodyJacobian(current_q)
-        finalerr = (LA.norm(xi[0:3]), LA.norm(xi[3:6]))
-        # translation_err = LA.norm(xi[0:3])
-        # rotation_err = LA.norm(xi[3:6])
-
-        if abs(np.linalg.det(J))<0.001:
-            # print('Singularity position')
-            current_q = current_q + 0.01
-            # finalerr = -1
-            # break
-        
-        if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :   
-            break;
-    
-    end = time.time()
-    print('Convergence achieved. Final error: {} cm     {}  rad'.format( finalerr[0]*10, finalerr[1]) )
-    print("time cost: ", end - start)
-    success = False
-    if(finalerr[0] < dist_threshold and finalerr[1] < angle_threshold):
-        success = True
-    return current_q, finalerr, success
-
 def custom_ik( goal_ee_7D, current_joints, debug=False ):
     goal_transform = get_transform(goal_ee_7D)
     K = 0.8
@@ -88,13 +47,13 @@ def custom_ik( goal_ee_7D, current_joints, debug=False ):
 
 def main() -> None:
    
-    episode = np.load("3.npy", allow_pickle = True)
+    episode = np.load("2.npy", allow_pickle = True)
 
     urdf_filename = (
         "../urdf/vx300s.urdf"
     )
-    model = pinocchio.buildModelFromUrdf(urdf_filename)
-    data = model.createData()
+    # model = pinocchio.buildModelFromUrdf(urdf_filename)
+    # data = model.createData()
     # last_joints = episode[0]["right_pos"][0:6].tolist()
     last_joints = episode[0]["right_pos"][0:6]
     last_joints_np = episode[0]["right_pos"][0:6]

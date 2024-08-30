@@ -1,7 +1,7 @@
 import numpy as np
-from SKEW3 import *
-from EXPCR import *
-def twist(xi,theta):
+from math_tools.SKEW3 import *
+from math_tools.EXPCR import *
+def TWIST(xi,theta):
 
     w = xi[3:]
     w = w.reshape(3,1)

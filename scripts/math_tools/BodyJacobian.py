@@ -1,8 +1,9 @@
 import numpy as np
 from numpy.linalg import inv
-from twist import *
-from SKEW3 import *
+from math_tools.TWIST import *
+from math_tools.SKEW3 import *
 import time
+
 np.set_printoptions(suppress=True)
 def get_Ad( R, p_hat):
     Ad = np.zeros( (6,6) )
@@ -26,12 +27,12 @@ def BodyJacobian(q):
     xi5 = np.array( [-0.427, 0. ,0.3596,         0.,1.,0.] )#y
     xi6 = np.array( [0., 0.427, 0.,          1.,0.,0] )#x
 
-    exp1 = twist(xi1,theta1)
-    exp2 = twist(xi2,theta2)
-    exp3 = twist(xi3,theta3)
-    exp4 = twist(xi4,theta4)
-    exp5 = twist(xi5,theta5)
-    exp6 = twist(xi6,theta6)
+    exp1 = TWIST(xi1,theta1)
+    exp2 = TWIST(xi2,theta2)
+    exp3 = TWIST(xi3,theta3)
+    exp4 = TWIST(xi4,theta4)
+    exp5 = TWIST(xi5,theta5)
+    exp6 = TWIST(xi6,theta6)
 
 
     g0 = np.eye(4)

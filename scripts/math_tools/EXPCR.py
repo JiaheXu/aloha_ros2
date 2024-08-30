@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import linalg as LA
 from scipy.linalg import expm, sinm, cosm
-from SKEW3 import *
+from math_tools.SKEW3 import *
 def EXPCR(X):
 
     theta = LA.norm(X)
