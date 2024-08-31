@@ -4,6 +4,7 @@ import open3d as o3d
 import numpy as np
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
+import copy
 
 def project_point( point_3d, color, image, extrinsic, intrinsic, radius = 5):
                 
