@@ -98,4 +98,4 @@ def xyz_rgb_validation(rgb, xyz):
     rgb = (rgb/255.0).reshape(-1,3)
     valid_pcd.points = o3d.utility.Vector3dVector( xyz )
     valid_pcd.colors = o3d.utility.Vector3dVector( rgb )
-    visualize_pcd(valid_pcd)
+    # visualize_pcd(valid_pcd)

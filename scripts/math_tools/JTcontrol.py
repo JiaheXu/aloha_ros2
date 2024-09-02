@@ -1,7 +1,7 @@
 import time
 import copy
 import numpy as np
-def RRcontrol(gdesired, q, K, debug =True):
+def TJcontrol(gdesired, q, K, debug =True):
 
     dist_threshold = 0.05 # m
     angle_threshold = (5.0*np.pi)/180 # rad
@@ -18,7 +18,7 @@ def RRcontrol(gdesired, q, K, debug =True):
         
         J = BodyJacobian(current_q)
 
-        current_q = current_q - K * Tstep * np.linalg.pinv(J) @ xi
+        current_q = current_q - K * Tstep * ( J.Transpose() )  @ xi
 
         J = BodyJacobian(current_q)
         finalerr = (LA.norm(xi[0:3]), LA.norm(xi[3:6]))
@@ -43,4 +43,5 @@ def RRcontrol(gdesired, q, K, debug =True):
     
     if(finalerr[0] < dist_threshold and finalerr[1] < angle_threshold):
         success = True
+    
     return current_q, finalerr, success
