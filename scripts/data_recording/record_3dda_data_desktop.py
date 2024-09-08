@@ -57,31 +57,22 @@ class DataCollector(Node):
         self.rh_gripper_left_transform = TransformStamped()
         self.rh_gripper_right_transform = TransformStamped()
 
-        #axes
+     #axes
         self.left_joystick_x = 0
         self.left_joystick_y = 1
-        self.l2 = 2
-        self.right_joystick_x = 3
-        self.right_joystick_y = 4
-        self.right_trigger = 5
-        self.leftside_left_right_arrow = 6
-        self.l = leftside_up_down_arrow = 7
+        
+        self.right_joystick_x = 2
+        self.right_joystick_y = 3
+        self.leftside_left_right_arrow = 4
+        self.leftside_up_down_arrow = 5
 
-        self.max_idx = 7
+        self.max_idx = 5
         
         # button mapping for wireless controller
         self.A_button = 0
         self.B_button = 1
-        self.X_button = 2
-        self.Y_button = 3
-
-        self.l1 = 4
-        self.r1 = 5
-        self.l2 = 6
-        self.r2 = 7
-        self.share_button = 8
-        self.opotions_button = 9
-        self.max_button = 9
+        self.X_button = 3
+        self.Y_button = 2
 
         # states
         self.recording = False
@@ -156,13 +147,14 @@ class DataCollector(Node):
 
         master_cam_t.header.frame_id = 'world'
         master_cam_t.child_frame_id = "master_camera"
-        master_cam_t.transform.translation.x = -0.13913296
-        master_cam_t.transform.translation.y = 0.053
-        master_cam_t.transform.translation.z = 0.43643044
-        master_cam_t.transform.rotation.x = -0.63127772
-        master_cam_t.transform.rotation.y = 0.64917582
-        master_cam_t.transform.rotation.z = -0.31329509
-        master_cam_t.transform.rotation.w = 0.28619116
+        master_cam_t.transform.translation.x = -0.1393031
+        master_cam_t.transform.translation.y = 0.0539
+        master_cam_t.transform.translation.z = 0.43911375
+
+        master_cam_t.transform.rotation.x = -0.61860094
+        master_cam_t.transform.rotation.y = 0.66385477
+        master_cam_t.transform.rotation.z = -0.31162288
+        master_cam_t.transform.rotation.w = 0.2819945
 
         # cam_t.header.frame_id = 'master_camera'
         # cam_t.child_frame_id = "zed_left_camera_frame"
@@ -292,6 +284,7 @@ class DataCollector(Node):
         
         # print("depth min:", np.min(current_state["depth"]))
         # print("depth max:", np.max(current_state["depth"]))
+        # print("depth mid:", current_state["depth"][540, 920] )
 
         current_state["left_pos"] = np.array(left_hand_joints.position) 
         current_state["left_vel"] = np.array(left_hand_joints.velocity) 

@@ -69,31 +69,19 @@ class DataCollector(Node):
         #axes
         self.left_joystick_x = 0
         self.left_joystick_y = 1
-        self.l2 = 2
-        self.right_joystick_x = 3
-        self.right_joystick_y = 4
-        self.right_trigger = 5
-        self.leftside_left_right_arrow = 6
-        self.l = leftside_up_down_arrow = 7
+        
+        self.right_joystick_x = 2
+        self.right_joystick_y = 3
+        self.leftside_left_right_arrow = 4
+        self.leftside_up_down_arrow = 5
 
-        self.max_idx = 7
+        self.max_idx = 5
         
         # button mapping for wireless controller
-        self.x_button = 0
-        self.o_button = 1
-        self.triangle_button = 2
-        self.square_button = 3
-
-        self.l1 = 4
-        self.r1 = 5
-        self.l2 = 6
-        self.r2 = 7
-
-
-        self.share_button = 8
-        self.opotions_button = 9
-
-        self.max_button = 9
+        self.A_button = 0
+        self.B_button = 1
+        self.X_button = 3
+        self.Y_button = 2
 
         # states
         self.recording = False
@@ -317,10 +305,9 @@ class DataCollector(Node):
 
     def joyCallback(self, msg):
 
-        start_recording_pressed = msg.buttons[self.triangle_button]
-        success_stop_pressed = msg.buttons[self.o_button]
-        failure_stop_pressed = msg.buttons[self.x_button]
-
+        start_recording_pressed = msg.buttons[self.Y_button]
+        success_stop_pressed = msg.buttons[self.A_button]
+        failure_stop_pressed = msg.buttons[self.B_button]
 
         if( (start_recording_pressed == True) and (self.start_recording_pressed_last == False) ):
             # if( self.recording == False ):
