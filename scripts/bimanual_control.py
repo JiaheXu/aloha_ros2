@@ -165,14 +165,18 @@ current_action = None
 
 def callback(multiarray):
     action = np.array(multiarray.data).reshape(-1,2,8)
+    global current_action
+    global new_action
     if(current_action is None):
         curretn_action = action
     else:
         new_action = action
     
-    print("action: ", action)
+    # print("action: ", action)
 
 def main() -> None:
+    global current_action
+    global new_action
     node = create_interbotix_global_node('aloha')
     # node = create_bimanual_global_node('bimanual')
 
@@ -209,6 +213,8 @@ def main() -> None:
             current_action = copy.deepcopy( new_action )
             new_action = None
             idx = 0
+        if(current_action is None):
+            continue
         if(idx >= current_action.shape[0]):
             continue
 
@@ -224,10 +230,13 @@ def main() -> None:
         current_left_joints = np.array( follower_left_state_joints )
         current_right_joints = np.array( follower_right_state_joints )
         # left hand
+        start = time.time()
+        
         left_ik_result, err, success = self.custom_ik( left_hand_goal, current_left_joints, debug=False )
         # right hand
         right_ik_result, err, success = self.custom_ik( right_hand_goal, current_right_joints, debug=False )
-        
+        end = time.time()
+        print("ik: ", end -start)
         # sleep DT
         get_interbotix_global_node().get_clock().sleep_for(DT_DURATION)
 
