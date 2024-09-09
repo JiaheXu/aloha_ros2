@@ -40,8 +40,19 @@ np.set_printoptions(suppress=True,precision=4)
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout
 
 from utils import *
-# from math_tools import *
+from math_tools import *
+import threading
+import time
 
+new_action = None
+current_action = None
+follower_bot_left = None
+follower_bot_right = None
+gripper_left_command = None
+gripper_right_command = None
+node = None
+current_idx = 0
+lock = threading.Lock()
 
 def opening_ceremony(
     follower_bot_left: InterbotixManipulatorXS,
@@ -64,7 +75,7 @@ def opening_ceremony(
 
     # move arms to starting position
     start_arm_qpos = START_ARM_POSE[:6]
-    start_arm_qpos[4] += 0.2
+    start_arm_qpos[4] += 0.4
     move_arms(
         [follower_bot_left, follower_bot_right],
         [start_arm_qpos] * 2,
@@ -77,80 +88,6 @@ def opening_ceremony(
         moving_time=0.5
     )
 
-# class BimanualNode( InterbotixRobotNode ):
-#     def __init__(
-#         self,
-#         node_name: str = 'bimanual_node',
-#         namespace: Optional[str] = None,
-#         *args,
-#         **kwargs,
-#     ) -> None:
-#         super().__init__(node_name=self.node_name, namespace=self.namespace, *args, **kwargs)
-#         self.get_logger().info("Initialized InterbotixRobotNode!")
-
-#         self.cmd_sub = self.create_subscription(Float32MultiArray, "bi_ee_traj_cmd", self.ee_traj_cmd_callback, 1)
-
-#     def custom_ik(self, goal_ee_7D, current_joints, debug=False ):
-
-#         goal_transform = get_transform(goal_ee_7D)
-#         K = 0.8
-#         result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K)
-#         # print("FwdKin: ", FwdKin(result_q))
-#         # print("Goal: ",goal_transform)
-#         return result_q, finalerr, success
-
-#     def ee_traj_cmd_callback(self, msg):
-#         ee_np = to_numpy_f32(msg.data) # shoould be n*2*8
-
-#         for idx in range( ee_np.shape[0] ):
-#             # follower_left_state_joints = leader_bot_left.core.joint_states.position[:6]
-#             # follower_right_state_joints = leader_bot_right.core.joint_states.position[:6]
-#             left_hand_goal = ee_np[idx,0, : ]
-#             left_hand_goal[1] -= 0.315
-
-#             right_hand_goal = ee_np[idx,1, : ]
-#             right_hand_goal[1] += 0.315
-
-#             current_left_joints = np.zeros( (6,1) )
-#             current_right_joints = np.zeros( (6,1) )
-#             # left hand
-#             ik_result, err, success = self.custom_ik( left_hand_goal, current_left_joints, debug=False )
-#             # right hand
-#             ik_result, err, success = self.custom_ik( right_hand_goal, current_right_joints, debug=False )
-#         return
-
-# def create_bimanual_global_node(
-#     node_name: str = 'interbotix_robot_manipulation',
-#     namespace: str = None,
-#     *args,
-#     **kwargs
-# ) -> InterbotixRobotNode:
-#     """
-#     Initialize the ROS context (if not already) and create a global generic node.
-
-#     :param node_name: The name of the node to create
-#     :param namespace: The namespace the node should be created under
-#     :return: A configured InterbotixRobotNode
-#     """
-#     if '__interbotix_global_node' in globals():
-#         raise InterbotixException(
-#             'Tried to create an Interbotix global node but one already exists.'
-#         )
-
-#     # Initialize the ROS context if not already
-#     if not rclpy.ok():
-#         rclpy.init(*args, **kwargs)
-
-#     # Instantiate a global InterbotixRobotNode
-#     global __interbotix_global_node
-#     __interbotix_global_node = BimanualNode(
-#         node_name=node_name,
-#         namespace=namespace,
-#         *args,
-#         **kwargs,
-#     )
-#     return __interbotix_global_node
-
 def custom_ik(goal_ee_7D, current_joints, debug=False ):
 
     goal_transform = get_transform(goal_ee_7D)
@@ -160,23 +97,92 @@ def custom_ik(goal_ee_7D, current_joints, debug=False ):
     # print("Goal: ",goal_transform)
     return result_q, finalerr, success
 
-new_action = None
-current_action = None
+
 
 def callback(multiarray):
-    action = np.array(multiarray.data).reshape(-1,2,8)
+    with lock:
+        action = np.array(multiarray.data).reshape(-1,2,8)
+        global current_action
+        global new_action
+        # print("action: ", action)
+        if(current_action is None):
+            current_action = copy.deepcopy(action)
+            # print()
+        else:
+            new_action = copy.deepcopy(action)
+    
+        print("action: ", current_action.shape)
+
+def timer_callback():
+    print("in timer call back")
     global current_action
     global new_action
+    global current_idx
+    global follower_bot_left
+    global follower_bot_right
+    global gripper_left_command
+    global gripper_right_command
+    global node
+
+    if(new_action is not None):
+        current_action = copy.deepcopy( new_action )
+        new_action = None
+        current_idx = 0
+
     if(current_action is None):
-        curretn_action = action
-    else:
-        new_action = action
+        return
+
+    if(current_idx >= current_action.shape[0]):
+        return
+    # print("current: ", current_action)
     
-    # print("action: ", action)
+    follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
+    follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
+
+    left_hand_goal = current_action[current_idx,0, 0:7 ]
+    left_hand_goal[1] -= 0.315
+    left_openness = current_action[current_idx,0, 7]
+
+    right_hand_goal = current_action[current_idx,1, 0:7 ]
+    right_hand_goal[1] += 0.315
+    right_openness = current_action[current_idx,1, 7]
+
+    current_left_joints = np.array( follower_left_state_joints )
+    current_right_joints = np.array( follower_right_state_joints )
+    # left hand
+    start = time.time()
+    
+    left_ik_result, err, success = custom_ik( left_hand_goal, current_left_joints, debug=False )
+    # right hand
+    right_ik_result, err, success = custom_ik( right_hand_goal, current_right_joints, debug=False )
+    end = time.time()
+    print("ik: ", end -start)
+    if(success == False):
+        return
+
+    follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
+    follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+    
+    gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        left_openness
+    )
+    gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        right_openness
+    )
+    # print("gripper: ", data_point["right_pos"][6])
+    follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
+    follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
 
 def main() -> None:
+    
     global current_action
     global new_action
+    global follower_bot_left
+    global follower_bot_right
+    global gripper_left_command
+    global gripper_right_command
+    global node
+
     node = create_interbotix_global_node('aloha')
     # node = create_bimanual_global_node('bimanual')
 
@@ -206,39 +212,13 @@ def main() -> None:
     gripper_right_command = JointSingleCommand(name='gripper')
 
     node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback, 1)
-    # rclpy.spin(node)
     idx = 0
-    while rclpy.ok():
-        if(new_action is not None):
-            current_action = copy.deepcopy( new_action )
-            new_action = None
-            idx = 0
-        if(current_action is None):
-            continue
-        if(idx >= current_action.shape[0]):
-            continue
+    timer_period = 0.1  # second
+    node.timer = node.create_timer(timer_period, timer_callback)
 
-        follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
-        follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
-        left_hand_goal = current_action[idx,0, 0:7 ]
-        left_hand_goal[1] -= 0.315
 
-        right_hand_goal = current_action[idx,1, 0:7 ]
-        right_hand_goal[1] += 0.315
-
-        current_left_joints = np.array( follower_left_state_joints )
-        current_right_joints = np.array( follower_right_state_joints )
-        # left hand
-        start = time.time()
-        
-        left_ik_result, err, success = self.custom_ik( left_hand_goal, current_left_joints, debug=False )
-        # right hand
-        right_ik_result, err, success = self.custom_ik( right_hand_goal, current_right_joints, debug=False )
-        end = time.time()
-        print("ik: ", end -start)
-        # sleep DT
-        get_interbotix_global_node().get_clock().sleep_for(DT_DURATION)
+    rclpy.spin(node)
 
     robot_shutdown(node)
 

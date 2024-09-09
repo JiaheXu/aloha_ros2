@@ -1,12 +1,17 @@
 import time
 import copy
 import numpy as np
+from math_tools.FwdKin import *
+from math_tools.getXi import *
+from math_tools.BodyJacobian import *
+from numpy.linalg import inv
+
 def RRcontrol(gdesired, q, K, debug =True):
 
-    dist_threshold = 0.05 # m
+    dist_threshold = 0.01 # m
     angle_threshold = (5.0*np.pi)/180 # rad
     Tstep = 0.2
-    maxiter = 1000
+    maxiter = 200
     current_q = copy.deepcopy(q)
     
     current_q = current_q.reshape(6,1)
