@@ -36,10 +36,11 @@ from rclpy.node import Node
 from rclpy.task import Future
 
 import numpy as np
+np.set_printoptions(suppress=True,precision=4)
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout
 
-from utils import *
-from math_tools import *
+# from utils import *
+# from math_tools import *
 
 
 def opening_ceremony(
@@ -149,10 +150,13 @@ def create_bimanual_global_node(
     )
     return __interbotix_global_node
 
+def callback(multiarray):
+    action = np.array(multiarray.data).reshape(-1,2,8)
+    print("action: ", action)
 
 def main() -> None:
-    # node = create_interbotix_global_node('aloha')
-    node = create_bimanual_global_node('bimanual')
+    node = create_interbotix_global_node('aloha')
+    # node = create_bimanual_global_node('bimanual')
 
     follower_bot_left = InterbotixManipulatorXS(
         robot_model='vx300s',
@@ -179,8 +183,10 @@ def main() -> None:
     gripper_left_command = JointSingleCommand(name='gripper')
     gripper_right_command = JointSingleCommand(name='gripper')
 
-
-    # while rclpy.ok():
+    node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback,1)
+    # rclpy.spin(node)
+    while rclpy.ok():
+        continue
     #     # sync joint positions
     #     leader_left_state_joints = leader_bot_left.core.joint_states.position[:6]
     #     leader_right_state_joints = leader_bot_right.core.joint_states.position[:6]
@@ -196,7 +202,7 @@ def main() -> None:
     #     follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
     #     follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
     #     # sleep DT
-    #     get_interbotix_global_node().get_clock().sleep_for(DT_DURATION)
+        # get_interbotix_global_node().get_clock().sleep_for(DT_DURATION)
 
     # robot_shutdown(node)
 
