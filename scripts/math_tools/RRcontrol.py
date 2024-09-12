@@ -9,13 +9,14 @@ from numpy.linalg import inv
 def RRcontrol(gdesired, q, K, debug =True):
 
     dist_threshold = 0.01 # m
-    angle_threshold = (5.0*np.pi)/180 # rad
-    Tstep = 0.2
-    maxiter = 200
+    angle_threshold = (10.0*np.pi)/180 # rad
+    Tstep = 0.1
+    maxiter = 1000
     current_q = copy.deepcopy(q)
     
     current_q = current_q.reshape(6,1)
     start = time.time()
+    i = 0
     for i in range(maxiter):
         gst = FwdKin(current_q)
         err = inv(gdesired) @ gst
@@ -30,18 +31,18 @@ def RRcontrol(gdesired, q, K, debug =True):
         # translation_err = LA.norm(xi[0:3])
         # rotation_err = LA.norm(xi[3:6])
 
-        if abs(np.linalg.det(J))<0.001:
+        if abs(np.linalg.det(J))<0.0001:
             # print('Singularity position')
-            current_q = current_q + 0.01
+            current_q = current_q + 0.001
             # finalerr = -1
             # break
         
         if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :   
-            break;
-    
+            break
+    print("iter: ", i)
     end = time.time()
     if debug:
-        print('Convergence achieved. Final error: {} cm     {}  rad'.format( finalerr[0]*10, finalerr[1]) )
+        print('Final error: {} cm     {}  rad'.format( finalerr[0]*10, finalerr[1]) )
         print("time cost: ", end - start)
     
     success = False
