@@ -22,6 +22,9 @@ from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, I
 import numpy as np 
 import time
 
+from numpy.linalg import inv
+from scipy.spatial.transform import Rotation
+
 from sensor_msgs.msg import Image, JointState
 from cv_bridge import CvBridge
 import cv2 
@@ -34,7 +37,8 @@ from tf2_ros import TransformBroadcaster
 import open3d as o3d
 
 from sensor_msgs.msg import PointCloud2, PointField
-import sensor_msgs.point_cloud2 as pc2
+# import sensor_msgs.point_cloud2 as pc2
+import sensor_msgs_py.point_cloud2 as pc2
 from ctypes import * # convert float to uint32
 # The data structure of each point in ros PointCloud2: 16 bits = x + y + z + rgb
 FIELDS_XYZ = [
@@ -155,6 +159,14 @@ class DataCollector(Node):
         timer_period = 0.01 #100hz
         self.timer = self.create_timer(timer_period, self.publish_tf)
 
+    def get_transform(self, transf_7D):
+        trans = transf_7D[0:3]
+        quat = transf_7D[3:7]
+        t = np.eye(4)
+        t[:3, :3] = Rotation.from_quat( quat ).as_matrix()
+        t[:3, 3] = trans
+        return t
+        
     # Convert the datatype of point cloud from Open3D to ROS PointCloud2 (XYZRGB only)
     def convertCloudFromOpen3dToRos(self, open3d_cloud, frame_id="world"):
         # Set "header"
