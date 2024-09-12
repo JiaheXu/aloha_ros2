@@ -18,7 +18,7 @@ from tf2_ros.transform_listener import TransformListener
 
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import PointStamped, TwistStamped, Quaternion, Vector3, TransformStamped
-from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, Int32
+from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, Int32,Header
 import numpy as np 
 import time
 
@@ -31,6 +31,33 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+import open3d as o3d
+
+from sensor_msgs.msg import PointCloud2, PointField
+import sensor_msgs.point_cloud2 as pc2
+from ctypes import * # convert float to uint32
+# The data structure of each point in ros PointCloud2: 16 bits = x + y + z + rgb
+FIELDS_XYZ = [
+    PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+    PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+    PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+]
+FIELDS_XYZRGB = FIELDS_XYZ + \
+    [PointField(name='rgb', offset=12, datatype=PointField.UINT32, count=1)]
+# from utils.ros2_o3d_utils import *
+# Bit operations
+BIT_MOVE_16 = 2**16
+BIT_MOVE_8 = 2**8
+convert_rgbUint32_to_tuple = lambda rgb_uint32: (
+    (rgb_uint32 & 0x00ff0000)>>16, (rgb_uint32 & 0x0000ff00)>>8, (rgb_uint32 & 0x000000ff)
+)
+convert_rgbFloat_to_tuple = lambda rgb_float: convert_rgbUint32_to_tuple(
+    int(cast(pointer(c_float(rgb_float)), POINTER(c_uint32)).contents.value)
+)
+convert_rgbaUint32_to_tuple = lambda rgb_uint32: (
+    (rgb_uint32 & 0x00ff0000)>>16, (rgb_uint32 & 0x0000ff00)>>8, (rgb_uint32 & 0x000000ff), (rgb_uint32 & 0xff000000)>>24
+)
+
 class DataCollector(Node):
 
     def __init__(self):
@@ -57,7 +84,7 @@ class DataCollector(Node):
         self.rh_gripper_left_transform = TransformStamped()
         self.rh_gripper_right_transform = TransformStamped()
 
-     #axes
+        #axes
         self.left_joystick_x = 0
         self.left_joystick_y = 1
         
@@ -90,7 +117,20 @@ class DataCollector(Node):
         self.joystick_sub = self.create_subscription(Joy, "/joy", self.joyCallback,1)
         self.br = CvBridge()
         # self.subscription = self.create_subscription(Image, "/camera_1/left_image", self.img_callback, 1)
-        
+
+        # Todo: use yaml files
+        self.cam_extrinsic = self.get_transform( [-0.13913296, 0.053, 0.43643044, -0.63127772, 0.64917582, -0.31329509, 0.28619116])
+        self.o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 734.1779174804688, 734.1779174804688, 993.6226806640625, 551.8895874023438)
+
+        self.resized_image_size = (256,256)
+        self.original_image_size = (1080, 1920) #(h,)
+        fxfy = 256.0
+        self.resized_intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(256, 256, fxfy, fxfy, 128.0, 128.0)
+        self.resized_intrinsic_np = np.array([
+            [fxfy, 0., 128.0],
+            [0. ,fxfy,  128.0],
+            [0., 0., 1.0]
+        ])    
 
         queue_size = 1000
         max_delay = 0.01 #10ms
@@ -110,9 +150,36 @@ class DataCollector(Node):
                                                      queue_size, max_delay)
         self.time_sync.registerCallback(self.SyncCallback)
 
+        self.pcd_publisher = self.create_publisher(PointCloud2, "rgb_pcd", 1)
+
         timer_period = 0.01 #100hz
         self.timer = self.create_timer(timer_period, self.publish_tf)
-    
+
+    # Convert the datatype of point cloud from Open3D to ROS PointCloud2 (XYZRGB only)
+    def convertCloudFromOpen3dToRos(self, open3d_cloud, frame_id="world"):
+        # Set "header"
+
+        ros_time = self.get_clock().now()
+        header = Header()
+        header.stamp = ros_time.to_msg()
+        header.frame_id = frame_id
+
+        # Set "fields" and "cloud_data"
+        points=np.asarray(open3d_cloud.points)
+        if not open3d_cloud.colors: # XYZ only
+            fields=FIELDS_XYZ
+            cloud_data=points
+        else: # XYZ + RGB
+            fields=FIELDS_XYZRGB
+            # -- Change rgb color from "three float" to "one 24-byte int"
+            # 0x00FFFFFF is white, 0x00000000 is black.
+            colors = np.floor(np.asarray(open3d_cloud.colors)*255) # nx3 matrix
+            colors = colors[:,0] * BIT_MOVE_16 +colors[:,1] * BIT_MOVE_8 + colors[:,2]  
+            cloud_data=np.c_[points, colors]
+        
+        # create ros_cloud
+        return pc2.create_cloud(header, fields, cloud_data)
+
     def publish_tf(self):
         left_t = TransformStamped()
         right_t = TransformStamped()
@@ -183,6 +250,34 @@ class DataCollector(Node):
         qw = ros_transformation.transform.rotation.w
 
         return np.array( [x, y, z, qx, qy, qz, qw] )
+
+    def image_process(self, bgr, depth, intrinsic_np, original_img_size, resized_intrinsic_np, resized_img_size):
+        
+        cx = intrinsic_np[0,2]
+        cy = intrinsic_np[1,2]
+
+        fx_factor = resized_intrinsic_np[0,0] / intrinsic_np[0,0]
+        fy_factor = resized_intrinsic_np[1,1] / intrinsic_np[1,1]
+
+        raw_fx = resized_intrinsic_np[0,0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        raw_fy = resized_intrinsic_np[1,1] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+        raw_cx = resized_intrinsic_np[0,2] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        raw_cy = resized_intrinsic_np[1,2] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+
+        width = resized_img_size[0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        height = resized_img_size[0] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+        
+        half_width = int( width / 2.0 )
+        half_height = int( height / 2.0 )
+
+        cropped_bgr = bgr[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width), :]
+        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+        processed_rgb = cv2.resize(cropped_rgb, resized_img_size)
+
+        cropped_depth = depth[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width)]
+        processed_depth = cv2.resize(cropped_depth, resized_img_size, interpolation =cv2.INTER_NEAREST)
+
+        return processed_rgb, processed_depth
 
     # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
     def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
@@ -304,7 +399,27 @@ class DataCollector(Node):
         self.current_stack.append(current_state)
 
 
-    
+        bgr_np = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
+        depth_np = np.array(self.br.imgmsg_to_cv2(depth, desired_encoding="mono16"))
+
+        rgb, depth = self.image_process(bgr_np, 
+                                        depth_np, 
+                                        self.o3d_intrinsic.intrinsic_matrix, 
+                                        self.original_image_size, 
+                                        self.resized_intrinsic_o3d.intrinsic_matrix,
+                                        self.resized_image_size 
+                                        )
+        im_color = o3d.geometry.Image(rgb)
+        im_depth = o3d.geometry.Image(depth)
+        rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+            im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
+        original_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+                rgbd,
+                self.o3d_intrinsic
+            )
+        original_pcd = original_pcd.transform( self.cam_extrinsic )
+        pcd_msg = self.convertCloudFromOpen3dToRos(self, original_pcd, frame_id="world")
+        self.pcd_publisher.publish(pcd_msg)
 
     def save_data(self):
         now = time.time()
