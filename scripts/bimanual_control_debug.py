@@ -105,24 +105,25 @@ def callback(multiarray):
         global current_action
         global new_action
         # print("action: ", action)
-        # if(current_action is None):
-            # current_action = copy.deepcopy(action)
-        # else:
-            # new_action = copy.deepcopy(action)
-        new_action = copy.deepcopy(action[0:8,:,:])
-        # print("action: ", current_action.shape)
+        if(current_action is None):
+            current_action = copy.deepcopy(action)
+            # print()
+        else:
+            new_action = copy.deepcopy(action)
+    
+        print("action: ", current_action)
 
 def timer_callback():
     print("in timer call back")
     global current_action
     global new_action
     global current_idx
-    global follower_bot_left
-    global follower_bot_right
-    global gripper_left_command
-    global gripper_right_command
+    # global follower_bot_left
+    # global follower_bot_right
+    # global gripper_left_command
+    # global gripper_right_command
     global node
-
+    print("current_idx: ", current_idx)
     if(new_action is not None):
         current_action = copy.deepcopy( new_action )
         new_action = None
@@ -132,12 +133,12 @@ def timer_callback():
         return
 
     if(current_idx >= current_action.shape[0]):
-        current_action = None
         return
-    print("current: ", current_action[0:3,:,:])
-    print("current_idx: ", current_idx)
-    follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
-    follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
+
+    # print("current: ", current_action)
+    
+    # follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
+    # follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
     left_hand_goal = current_action[current_idx,0, 0:7 ]
     left_hand_goal[1] -= 0.315
@@ -147,8 +148,8 @@ def timer_callback():
     right_hand_goal[1] += 0.315
     right_openness = current_action[current_idx,1, 7]
 
-    current_left_joints = np.array( follower_left_state_joints )
-    current_right_joints = np.array( follower_right_state_joints )
+    current_left_joints = np.array( [0., 0., 0., 0., 0.2, 0.])
+    current_right_joints = np.array( [0., 0., 0., 0., 0.2, 0.] )
     # left hand
     start = time.time()
     
@@ -159,13 +160,9 @@ def timer_callback():
     print("ik: ", end -start)
     print("success: ", success)
     print()
-    
     current_idx += 1
     if(success == False):
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        # return
+        return
 
     # follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
     # follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
@@ -193,30 +190,30 @@ def main() -> None:
     node = create_interbotix_global_node('aloha')
     # node = create_bimanual_global_node('bimanual')
 
-    follower_bot_left = InterbotixManipulatorXS(
-        robot_model='vx300s',
-        robot_name='follower_left',
-        node=node,
-        iterative_update_fk=False,
-    )
-    follower_bot_right = InterbotixManipulatorXS(
-        robot_model='vx300s',
-        robot_name='follower_right',
-        node=node,
-        iterative_update_fk=False,
-    )
-    robot_startup(node)
+    # follower_bot_left = InterbotixManipulatorXS(
+    #     robot_model='vx300s',
+    #     robot_name='follower_left',
+    #     node=node,
+    #     iterative_update_fk=False,
+    # )
+    # follower_bot_right = InterbotixManipulatorXS(
+    #     robot_model='vx300s',
+    #     robot_name='follower_right',
+    #     node=node,
+    #     iterative_update_fk=False,
+    # )
+    # robot_startup(node)
 
-    opening_ceremony(
-        follower_bot_left,
-        follower_bot_right,
-    )
+    # opening_ceremony(
+    #     follower_bot_left,
+    #     follower_bot_right,
+    # )
 
-    # press_to_start(leader_bot_left, leader_bot_right)
+    # # press_to_start(leader_bot_left, leader_bot_right)
 
-    # Teleoperation loop
-    gripper_left_command = JointSingleCommand(name='gripper')
-    gripper_right_command = JointSingleCommand(name='gripper')
+    # # Teleoperation loop
+    # gripper_left_command = JointSingleCommand(name='gripper')
+    # gripper_right_command = JointSingleCommand(name='gripper')
 
     node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback, 1)
     idx = 0

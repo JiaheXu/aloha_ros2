@@ -80,8 +80,8 @@ class DataCollector(Node):
         # button mapping for wireless controller
         self.A_button = 0
         self.B_button = 1
-        self.X_button = 3
-        self.Y_button = 2
+        self.X_button = 2
+        self.Y_button = 3
 
         # states
         self.recording = False

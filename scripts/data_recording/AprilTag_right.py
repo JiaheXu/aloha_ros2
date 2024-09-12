@@ -37,7 +37,7 @@ from pupil_apriltags import Detector
 from nav_msgs.msg import Odometry
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
-
+import PIL.Image as PIL_Image
 aprilTag_R = np.array([
     [1.,0.,0.],
     [0.,-1.,0.],
@@ -126,7 +126,7 @@ class DataCollector(Node):
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        self.rgb_sub = self.create_subscription(Image, "/camera_1/left_image", self.RgbCallback,1)
+        self.bgr_sub = self.create_subscription(Image, "/camera_1/left_image", self.BgrCallback,1)
         # self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
         # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
         
@@ -158,12 +158,12 @@ class DataCollector(Node):
         # # Send the transformation
         self.tf_broadcaster.sendTransform(t)
     
-    def RgbCallback(self, rgb):
+    def BgrCallback(self, bgr):
         try:
             self.hand_transform = self.tf_buffer.lookup_transform(
                     self.base_frame,
                     self.tag_frame,
-                    rgb.header.stamp
+                    bgr.header.stamp
             )
         
         except TransformException as ex:
@@ -187,7 +187,7 @@ class DataCollector(Node):
         qz = self.hand_transform.transform.rotation.z
         qw = self.hand_transform.transform.rotation.w
 
-        cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
+        cv_image = self.br.imgmsg_to_cv2(bgr, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         #print("image size: ", gray_image.shape)
         result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.06) 
@@ -250,14 +250,19 @@ class DataCollector(Node):
                         point.x, point.y, point.z,
                         tag_odom_quat[0], tag_odom_quat[1], tag_odom_quat[2], tag_odom_quat[3]
                     ])
+                    current_state['bgr'] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
+                    
+                    
 
                     if( self.recording == True ):
                         self.current_stack.append(current_state)
                         self.last_data_time = data_time
                         self.recording = False
+                        im = PIL_Image.fromarray(current_state['bgr'][...,::-1].copy())
+                        im.save("example.jpeg")
                         self.get_logger().info("added data!!!!!!!!")
                         self.get_logger().info("added data!!!!!!!!")
-                        self.get_logger().info("added data!!!!!!!!")   
+                        self.get_logger().info("added data!!!!!!!!")
 
     def save_data(self):
         now = time.time()

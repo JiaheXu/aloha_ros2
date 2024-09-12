@@ -105,12 +105,13 @@ def callback(multiarray):
         global current_action
         global new_action
         # print("action: ", action)
-        # if(current_action is None):
-            # current_action = copy.deepcopy(action)
-        # else:
-            # new_action = copy.deepcopy(action)
-        new_action = copy.deepcopy(action[0:8,:,:])
-        # print("action: ", current_action.shape)
+        if(current_action is None):
+            current_action = copy.deepcopy(action)
+            # print()
+        else:
+            new_action = copy.deepcopy(action)
+    
+        print("action: ", current_action.shape)
 
 def timer_callback():
     print("in timer call back")
@@ -132,10 +133,9 @@ def timer_callback():
         return
 
     if(current_idx >= current_action.shape[0]):
-        current_action = None
         return
-    print("current: ", current_action[0:3,:,:])
-    print("current_idx: ", current_idx)
+    # print("current: ", current_action)
+    
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
@@ -162,23 +162,20 @@ def timer_callback():
     
     current_idx += 1
     if(success == False):
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        # return
+        return
 
-    # follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
-    # follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+    follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
+    follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
     
-    # gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-    #     left_openness
-    # )
-    # gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-    #     right_openness
-    # )
-    # # print("gripper: ", data_point["right_pos"][6])
-    # follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
-    # follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
+    gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        left_openness
+    )
+    gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        right_openness
+    )
+    # print("gripper: ", data_point["right_pos"][6])
+    follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
+    follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
 
 def main() -> None:
     

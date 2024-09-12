@@ -36,7 +36,7 @@ def BodyJacobian(q):
 
 
     g0 = np.eye(4)
-    g0[0,3] = 0.5361
+    g0[0,3] = 0.60
     g0[2,3] = 0.427
 
     g1 = inv(exp1 @ exp2 @ exp3 @ exp4 @ exp5 @ exp6 @ g0)
