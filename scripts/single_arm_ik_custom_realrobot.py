@@ -41,7 +41,8 @@ from math_tools import *
 
 from rclpy.duration import Duration
 from rclpy.constants import S_TO_NS
-CONTROL_DT = 0.05 #15hz
+# CONTROL_DT = 0.05 #15hz
+CONTROL_DT = 0.5 #15hz
 CONTROL_DT_DURATION = Duration(seconds=0, nanoseconds= CONTROL_DT * S_TO_NS)
 
 def opening_ceremony(
@@ -90,30 +91,30 @@ def custom_ik( goal_ee_7D, current_joints, debug=False ):
 
 def main() -> None:
    
-    # node = create_interbotix_global_node('aloha')
-    # # node = create_bimanual_global_node('bimanual')
+    node = create_interbotix_global_node('aloha')
+    # node = create_bimanual_global_node('bimanual')
 
-    # follower_bot_left = InterbotixManipulatorXS(
-    #     robot_model='vx300s',
-    #     robot_name='follower_left',
-    #     node=node,
-    #     iterative_update_fk=False,
-    # )
-    # follower_bot_right = InterbotixManipulatorXS(
-    #     robot_model='vx300s',
-    #     robot_name='follower_right',
-    #     node=node,
-    #     iterative_update_fk=False,
-    # )
-    # robot_startup(node)
+    follower_bot_left = InterbotixManipulatorXS(
+        robot_model='vx300s',
+        robot_name='follower_left',
+        node=node,
+        iterative_update_fk=False,
+    )
+    follower_bot_right = InterbotixManipulatorXS(
+        robot_model='vx300s',
+        robot_name='follower_right',
+        node=node,
+        iterative_update_fk=False,
+    )
+    robot_startup(node)
 
-    # opening_ceremony(
-    #     follower_bot_left,
-    #     follower_bot_right,
-    # )
+    opening_ceremony(
+        follower_bot_left,
+        follower_bot_right,
+    )
 
-    # gripper_left_command = JointSingleCommand(name='gripper')
-    # gripper_right_command = JointSingleCommand(name='gripper')
+    gripper_left_command = JointSingleCommand(name='gripper')
+    gripper_right_command = JointSingleCommand(name='gripper')
 
    
     task = "" 
@@ -125,20 +126,16 @@ def main() -> None:
         sample = sample.item()
 
         goals = sample["action"]
-        
-        current_left_joints = sample['left_joints'][0:6]
         # for current_idx in range( goals.shape[0] ):
-            # gdesired = get_transform( goals[current_idx,0,0:7] )
-        for current_idx in range( 1 ):
+        for current_idx in range( 5 ):
             gdesired = get_transform( goals[-1,0,0:7] )
-            
             gdesired[1,3] -= 0.315
 
             K = 0.4
             start = time.time()
-            # follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
-            # current_left_joints = np.array( follower_left_state_joints )
-
+            follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
+            current_left_joints = np.array( follower_left_state_joints )
+            print("start_current_left_joints: ", current_left_joints)
             left_ik_result, err, success = RRcontrol(gdesired, current_left_joints , K, debug = True)
             # ik_result[0] -= 2.0 * np.pi
             end = time.time()
@@ -150,14 +147,31 @@ def main() -> None:
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
-            current_left_joints = left_ik_result
-        print("idx: ", idx)
-        transf = FwdKin(current_left_joints)
-        transf[1,3] += 0.315
-        print("step final: ", transf)
-        print("step goal: ", get_transform( goals[-1,0,0:7] ) )
-        print("left_ik_result: ", left_ik_result)
-        print()
+
+            # print("left_ik_result: ", left_ik_result)
+            # joints = data_point["right_pos"][0:6]
+            follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
+            
+            # follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+        
+            # gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+            #     data_point["left_pos"][6] - 0.7
+            # )
+            # follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
+        
+            # sleep DT
+            get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
+
+            follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
+            current_left_joints = np.array( follower_left_state_joints )
+            transf = FwdKin(current_left_joints)
+            transf[1,3] += 0.315
+            print("step idx: ", idx)
+            print("step final: ", transf)
+            print("step goal: ", get_transform( goals[-1,0,0:7] ) )
+            print("current_left_joints: ", current_left_joints)
+            print("left_ik_result: ", left_ik_result)
+            print()
     # print("finished !!!!!!!!!!" )
 
 

@@ -8,10 +8,10 @@ from numpy.linalg import inv
 
 def RRcontrol(gdesired, q, K, debug =True):
 
-    dist_threshold = 0.01 # m
+    dist_threshold = 0.003 # m
     angle_threshold = (10.0*np.pi)/180 # rad
-    Tstep = 0.1
-    maxiter = 1000
+    Tstep = 1.0
+    maxiter = 100
     current_q = copy.deepcopy(q)
     
     current_q = current_q.reshape(6,1)

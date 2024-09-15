@@ -37,7 +37,7 @@ from rclpy.task import Future
 
 import numpy as np
 np.set_printoptions(suppress=True,precision=4)
-from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout
+from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout, Bool
 
 from utils import *
 from math_tools import *
@@ -91,8 +91,8 @@ def opening_ceremony(
 def custom_ik(goal_ee_7D, current_joints, debug=False ):
 
     goal_transform = get_transform(goal_ee_7D)
-    K = 0.8
-    result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K)
+    K = 0.4
+    result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K, debug = debug)
     # print("FwdKin: ", FwdKin(result_q))
     # print("Goal: ",goal_transform)
     return result_q, finalerr, success
@@ -109,7 +109,7 @@ def callback(multiarray):
             # current_action = copy.deepcopy(action)
         # else:
             # new_action = copy.deepcopy(action)
-        new_action = copy.deepcopy(action[0:8,:,:])
+        new_action = copy.deepcopy(action[-2:-1,:,:])
         # print("action: ", current_action.shape)
 
 def timer_callback():
@@ -133,9 +133,17 @@ def timer_callback():
 
     if(current_idx >= current_action.shape[0]):
         current_action = None
+        msg = Bool()
+        msg.data = True
+        node.state_publisher.publish(msg)
+        print("finished !!!")
+        print("finished !!!")
+        print("finished !!!")
         return
-    print("current: ", current_action[0:3,:,:])
+    # print("current: ", current_action[0:3,:,:])
     print("current_idx: ", current_idx)
+
+    # print("now: ", time.time())
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
@@ -152,33 +160,40 @@ def timer_callback():
     # left hand
     start = time.time()
     
-    left_ik_result, err, success = custom_ik( left_hand_goal, current_left_joints, debug=False )
+    left_ik_result, err, success_left = custom_ik( left_hand_goal, current_left_joints, debug=False )
     # right hand
-    right_ik_result, err, success = custom_ik( right_hand_goal, current_right_joints, debug=False )
+    right_ik_result, err, success_right = custom_ik( right_hand_goal, current_right_joints, debug=False )
     end = time.time()
-    print("ik: ", end -start)
-    print("success: ", success)
+    print("ik time: ", end -start)
+
+    success = success_left and success_left
+    # print("success: ", success)
     print()
     
     current_idx += 1
-    if(success == False):
+    if(success == False ):
+        print("left: ", current_left_joints)
+        print("right: ", current_right_joints)
+        print("left goal: ", current_action[current_idx,0, 0:7 ])
+        print("right goal: ", current_action[current_idx,1, 0:7 ])
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        # return
+        return
+    # print("left_ik_result: ", left_ik_result)
+    # print("right_ik_result: ", right_ik_result)
+    follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
+    follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
 
-    # follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
-    # follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
-    
-    # gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-    #     left_openness
-    # )
-    # gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-    #     right_openness
-    # )
-    # # print("gripper: ", data_point["right_pos"][6])
-    # follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
-    # follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
+    gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        left_openness
+    )
+    gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+        right_openness
+    )
+    # print("gripper: ", data_point["right_pos"][6])
+    follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
+    follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
 
 def main() -> None:
     
@@ -223,7 +238,7 @@ def main() -> None:
     timer_period = 0.1  # second
     node.timer = node.create_timer(timer_period, timer_callback)
 
-
+    node.state_publisher = node.create_publisher(Bool, 'controller_finished', 1)
 
     rclpy.spin(node)
 

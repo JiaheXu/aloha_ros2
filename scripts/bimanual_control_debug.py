@@ -91,7 +91,7 @@ def opening_ceremony(
 def custom_ik(goal_ee_7D, current_joints, debug=False ):
 
     goal_transform = get_transform(goal_ee_7D)
-    K = 0.8
+    K = 0.2
     result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K)
     # print("FwdKin: ", FwdKin(result_q))
     # print("Goal: ",goal_transform)

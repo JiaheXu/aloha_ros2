@@ -137,10 +137,11 @@ def main() -> None:
     # print(len(episode))
     # for data_point in episode:
 
-    recorded_state_joints = np.array([0., 0., 0., 0., 0., 0.])
+    recorded_state_joints = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.])
 
-    follower_bot_right.arm.set_joint_positions(recorded_state_joints, blocking=False)
-    get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
+    for i in range(10):
+        follower_bot_right.arm.set_joint_positions(recorded_state_joints, blocking=False)
+        get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
 
 
     print("finished !!!!!!!!!!" )

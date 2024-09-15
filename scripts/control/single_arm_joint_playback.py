@@ -132,12 +132,12 @@ def main() -> None:
     gripper_right_command = JointSingleCommand(name='gripper')
 
     # todo, change this to ROS
-    episode = np.load("1.npy", allow_pickle = True)
+    # episode = np.load("1.npy", allow_pickle = True)
 
     print(len(episode))
     for data_point in episode:
 
-        recorded_state_joints = data_point["right_pos"][0:6]
+        # recorded_state_joints = data_point["right_pos"][0:6]
 
         follower_bot_right.arm.set_joint_positions(recorded_state_joints, blocking=False)
         gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(

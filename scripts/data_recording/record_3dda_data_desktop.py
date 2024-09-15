@@ -190,6 +190,9 @@ class DataCollector(Node):
             cloud_data=np.c_[points, colors]
         
         # create ros_cloud
+        # fields=FIELDS_XYZ
+        # cloud_data=points
+        # print("fields: ", fields)
         return pc2.create_cloud(header, fields, cloud_data)
 
     def publish_tf(self):
@@ -427,10 +430,10 @@ class DataCollector(Node):
             im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
         original_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
                 rgbd,
-                self.o3d_intrinsic
+                self.resized_intrinsic_o3d
             )
         original_pcd = original_pcd.transform( self.cam_extrinsic )
-        pcd_msg = self.convertCloudFromOpen3dToRos(self, original_pcd, frame_id="world")
+        pcd_msg = self.convertCloudFromOpen3dToRos(original_pcd, frame_id="world")
         self.pcd_publisher.publish(pcd_msg)
 
     def save_data(self):
