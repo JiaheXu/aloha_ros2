@@ -127,10 +127,10 @@ def main() -> None:
         goals = sample["action"]
         
         current_left_joints = sample['left_joints'][0:6]
-        # for current_idx in range( goals.shape[0] ):
-            # gdesired = get_transform( goals[current_idx,0,0:7] )
-        for current_idx in range( 1 ):
-            gdesired = get_transform( goals[-1,0,0:7] )
+        for current_idx in range( goals.shape[0] ):
+            gdesired = get_transform( goals[current_idx,0,0:7] )
+        # for current_idx in range( 1 ):
+            # gdesired = get_transform( goals[-1,0,0:7] )
             
             gdesired[1,3] -= 0.315
 
@@ -151,11 +151,11 @@ def main() -> None:
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
             current_left_joints = left_ik_result
-        print("idx: ", idx)
+        # print("idx: ", idx)
         transf = FwdKin(current_left_joints)
         transf[1,3] += 0.315
-        print("step final: ", transf)
-        print("step goal: ", get_transform( goals[-1,0,0:7] ) )
+        # print("step final: ", transf)
+        # print("step goal: ", get_transform( goals[-1,0,0:7] ) )
         print("left_ik_result: ", left_ik_result)
         print()
     # print("finished !!!!!!!!!!" )
