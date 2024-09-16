@@ -6,7 +6,7 @@ from math_tools.getXi import *
 from math_tools.BodyJacobian import *
 from numpy.linalg import inv
 
-def RRcontrol(gdesired, q, K, debug =True):
+def RRcontrol(gdesired, q, K = 0.4, debug =True):
 
     dist_threshold = 0.003 # m
     angle_threshold = (10.0*np.pi)/180 # rad

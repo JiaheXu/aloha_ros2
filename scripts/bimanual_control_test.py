@@ -88,14 +88,7 @@ def opening_ceremony(
         moving_time=0.5
     )
 
-def custom_ik(goal_ee_7D, current_joints, debug=False ):
 
-    goal_transform = get_transform(goal_ee_7D)
-    K = 0.4
-    result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K, debug = debug)
-    # print("FwdKin: ", FwdKin(result_q))
-    # print("Goal: ",goal_transform)
-    return result_q, finalerr, success
 
 
 
@@ -129,6 +122,7 @@ def callback(multiarray):
 
     left_stack = traj_interpolation(left_stack)
     right_stack = traj_interpolation(right_stack)
+
     left_mid_point = get_mid_point(left_stack[:,0:3])
     right_mid_point = get_mid_point(right_stack[:,0:3])
     
@@ -137,6 +131,12 @@ def callback(multiarray):
 
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
+
+    current_left_joints = np.array( follower_left_state_joints )
+    current_right_joints = np.array( follower_right_state_joints )
+
+
+
 
 def timer_callback():
     print("in timer call back")

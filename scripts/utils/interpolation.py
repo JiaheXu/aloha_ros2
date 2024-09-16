@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.interpolate import CubicSpline, interp1d
 from numpy import linalg as LA
+from utils import *
+from math_tools import *
 
 def traj_interpolation( trajectory, interpolation_length = 20):
     if isinstance(trajectory, list):
@@ -43,3 +45,50 @@ def get_mid_point(trajectory):
     #print("diff3: ", diff3)
     #print("idx: ", idx)
     return idx
+
+
+# def custom_ik(goal_ee_7D, current_joints, debug=False ):
+
+#     goal_transform = get_transform(goal_ee_7D)
+#     K = 0.4
+#     result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K, debug = debug)
+#     # print("FwdKin: ", FwdKin(result_q))
+#     # print("Goal: ",goal_transform)
+#     return result_q, finalerr, success
+
+def get_trajectory(current_joins, mid_goals, goals):
+    left_hand_mid_goal = left_stack[left_mid_point, 0:7]
+    right_hand_mid_goal = right_stack[right_mid_point, 0:7]
+
+    left_hand_mid_goal_transform = get_transform(left_hand_mid_goal)
+    right_hand_mid_goal_transform = get_transform(right_hand_mid_goal)     
+    left_ik_result1, err, success_left = RRcontrol( left_hand_mid_goal_transform, current_left_joints, debug=False )
+    right_ik_result1, err, success_right = RRcontrol( right_hand_mid_goal_transform, current_right_joints, debug=False )
+    success = success_left and success_left
+    if(success == False ):
+        print("first part failed")
+        print("left: ", current_left_joints)
+        print("right: ", current_right_joints)
+        print("left goal: ", left_hand_mid_goal)
+        print("right goal: ", right_hand_mid_goal)
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        return
+
+    left_hand_goal = left_stack[-1, 0:7]
+    right_hand_goal = right_stack[-1, 0:7]
+    left_hand_goal_transform = get_transform(left_hand_goal)
+    right_hand_goal_transform = get_transform(right_hand_goal)   
+    left_ik_result2, err, success_left = RRcontrol( left_hand_goal_transform, left_ik_result1, debug=False )
+    right_ik_result2, err, success_right = RRcontrol( right_hand_goal_transform, right_ik_result1, debug=False )
+    if(success == False ):
+        print("2nd part failed")
+        print("left: ", left_ik_result1)
+        print("right: ", right_ik_result1)
+        print("left goal: ", left_hand_goal)
+        print("right goal: ", right_hand_goal)
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        return
