@@ -139,7 +139,7 @@ def main() -> None:
             # follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
             # current_left_joints = np.array( follower_left_state_joints )
 
-            left_ik_result, err, success = RRcontrol(gdesired, current_left_joints , K, debug = True)
+            left_ik_result, err, success = RRcontrol(gdesired, current_left_joints , K, debug = False)
             # ik_result[0] -= 2.0 * np.pi
             end = time.time()
             if( success == False):
@@ -151,12 +151,13 @@ def main() -> None:
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
                 print("don't have a solution!!!!!!!!!!!!!!!!!!")
             current_left_joints = left_ik_result
+            # print("left_ik_result: ", left_ik_result)
         # print("idx: ", idx)
         transf = FwdKin(current_left_joints)
         transf[1,3] += 0.315
         # print("step final: ", transf)
         # print("step goal: ", get_transform( goals[-1,0,0:7] ) )
-        print("left_ik_result: ", left_ik_result)
+        print("left_ik_result: ", left_ik_result[0:3])
         print()
     # print("finished !!!!!!!!!!" )
 

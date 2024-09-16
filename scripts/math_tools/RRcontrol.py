@@ -39,9 +39,10 @@ def RRcontrol(gdesired, q, K, debug =True):
         
         if LA.norm(xi[0:3]) < dist_threshold and LA.norm(xi[3:6]) < angle_threshold :   
             break
-    print("iter: ", i)
+
     end = time.time()
     if debug:
+        print("iter: ", i)
         print('Final error: {} cm     {}  rad'.format( finalerr[0]*10, finalerr[1]) )
         print("time cost: ", end - start)
     
