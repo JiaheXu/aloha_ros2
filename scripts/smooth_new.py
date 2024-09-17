@@ -243,6 +243,7 @@ def main():
     length = 25
     #length = 1
     for idx in range(length):
+    # for idx in range(2,3):
         print("idx: ", idx)
         sample = np.load("./{}/step_{}.npy".format(file_dir, idx) , allow_pickle = True)
         # print("sample: ", sample)
@@ -266,9 +267,17 @@ def main():
         curr_pose = []
         
         start = time.time()
-        print("curr_gripper: ", get_transform2(curr_gripper[0,0:7]))
-        curr_pose.append( get_transform2(curr_gripper[0,0:7]) )
-        curr_pose.append( get_transform2(curr_gripper[1,0:7]) )
+        
+        # curr_pose.append( get_transform2(curr_gripper[0,0:7]) )
+        # curr_pose.append( get_transform2(curr_gripper[1,0:7]) )
+
+        trans = FwdKin(sample["left_joints"])
+        trans[1,3] += 0.315
+        curr_pose.append( copy.deepcopy(trans) )
+
+        trans = FwdKin(sample["right_joints"])
+        trans[1,3] -= 0.315
+        curr_pose.append( copy.deepcopy(trans) )
 
         # print("action: ", action.shape)
         trajectory = action
@@ -304,10 +313,49 @@ def main():
         
         left = [ get_transform2(left_stack[0]), get_transform2(left_stack[left_mid_point]), get_transform2(left_stack[-1]) ]
         right = [ get_transform2(right_stack[0]), get_transform2(right_stack[right_mid_point]), get_transform2(right_stack[-1]) ]
-        end = time.time()
-        #print("time cost: ", end - start)
+
+
+        # current_pose = [sample["left_joints"], sample["right_joints"]]
+        # current_pose = [ left_stack[0], right_stack[0] ]
+
+
+        mid_goals = [ left_stack[left_mid_point], right_stack[right_mid_point] ]
+        goals = [left_stack[-1], right_stack[-1]]
+
+
+        left_hand = get_transform2(left_stack[0])
+        left_hand[1,3] -= 0.315
+        right_hand = get_transform2(right_stack[0])
+        right_hand[1,3] += 0.315
+
+        left_ik, err, success_left = RRcontrol( left_hand, sample["left_joints"][0:6], debug=False )
+        right_ik, err, success_right = RRcontrol( right_hand, sample["right_joints"][0:6], debug=False )
+        left_ik = np.concatenate( [left_ik, np.array([0]) ] )
+        right_ik = np.concatenate( [right_ik, np.array([0]) ] )
+        current_joints = [left_ik, right_ik]
         
-        visualize_pcd(pcd, left, right, curr_pose)
+        left_traj, right_traj = get_trajectory( current_joints, mid_goals, goals)
+
+        end = time.time()
+        print("time cost: ", end - start)
+
+        # trans = FwdKin(sample["left_joints"])
+        # trans[1,3] += 0.315
+        # print("FWK: ",  trans)
+        # print("curr_gripper: ", get_transform2(curr_gripper[0,0:7]))
+        # print()
+        curr_gripper = [get_transform2(curr_gripper[0,0:7]), get_transform2(curr_gripper[1,0:7])]
+
+        for idx in range(left_traj.shape[0]):
+            trans = FwdKin( left_traj[idx, 0:6] )
+            trans[1,3] += 0.315
+            left.append( trans )
+        for idx in range(right_traj.shape[0]):
+            trans = FwdKin( right_traj[idx, 0:6] )
+            trans[1,3] -= 0.315
+            right.append( trans )
+
+        visualize_pcd(pcd, left, right, curr_gripper)
 
 
 if __name__ == "__main__":

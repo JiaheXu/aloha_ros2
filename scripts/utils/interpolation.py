@@ -55,15 +55,45 @@ def get_mid_point(trajectory):
 #     # print("FwdKin: ", FwdKin(result_q))
 #     # print("Goal: ",goal_transform)
 #     return result_q, finalerr, success
+def bound_joints( joints ):
+    joints = joints.reshape(-1)
+    for idx in range( joints.shape[0] ):
+        if np.abs( joints[idx] ) > np.pi:
+            while( joints[idx] > np.pi ):
+                joints[idx] -= 2*np.pi
+            while( joints[idx] < -np.pi ):
+                joints[idx] += 2*np.pi
+            # print("idx: ", idx)
+    return joints            
 
-def get_trajectory(current_joins, mid_goals, goals):
-    left_hand_mid_goal = left_stack[left_mid_point, 0:7]
-    right_hand_mid_goal = right_stack[right_mid_point, 0:7]
+def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
+
+    current_left_joints = current_joints[0][0:6]
+    current_right_joints = current_joints[1][0:6]
+    current_left_gripper = current_joints[0][6]
+    current_right_gripper = current_joints[1][6]
+
+    left_hand_mid_goal = mid_goals[0][0:7]
+    left_hand_mid_goal[1] -= 0.315
+    right_hand_mid_goal = mid_goals[1][0:7]
+    right_hand_mid_goal[1] += 0.315
 
     left_hand_mid_goal_transform = get_transform(left_hand_mid_goal)
-    right_hand_mid_goal_transform = get_transform(right_hand_mid_goal)     
+    right_hand_mid_goal_transform = get_transform(right_hand_mid_goal)
+
     left_ik_result1, err, success_left = RRcontrol( left_hand_mid_goal_transform, current_left_joints, debug=False )
+    # print("before: ", left_ik_result1)
+    # trans1 = FwdKin(left_ik_result1)
+    # start = time.time()
+    left_ik_result1 = bound_joints(left_ik_result1)
+    # end = time.time()
+    # print("time cost: ", end - start)
+    # trans2 = FwdKin(left_ik_result1)
+    # print("after: ", left_ik_result1)
+    # print("diff: ", trans1 - trans2)
     right_ik_result1, err, success_right = RRcontrol( right_hand_mid_goal_transform, current_right_joints, debug=False )
+    right_ik_result1 = bound_joints(right_ik_result1)
+
     success = success_left and success_left
     if(success == False ):
         print("first part failed")
@@ -74,14 +104,22 @@ def get_trajectory(current_joins, mid_goals, goals):
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        return
+        return None, None
 
-    left_hand_goal = left_stack[-1, 0:7]
-    right_hand_goal = right_stack[-1, 0:7]
+    left_hand_goal = goals[0][0:7]
+    left_hand_goal[1] -= 0.315
+    right_hand_goal = goals[1][0:7]
+    right_hand_goal[1] += 0.315
+
     left_hand_goal_transform = get_transform(left_hand_goal)
     right_hand_goal_transform = get_transform(right_hand_goal)   
+
     left_ik_result2, err, success_left = RRcontrol( left_hand_goal_transform, left_ik_result1, debug=False )
+    left_ik_result1 = bound_joints(left_ik_result1)
+
     right_ik_result2, err, success_right = RRcontrol( right_hand_goal_transform, right_ik_result1, debug=False )
+    right_ik_result2 = bound_joints(right_ik_result2)
+
     if(success == False ):
         print("2nd part failed")
         print("left: ", left_ik_result1)
@@ -91,4 +129,48 @@ def get_trajectory(current_joins, mid_goals, goals):
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
         print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        return
+        return None, None
+    print("current_joints: ", current_joints)
+    print("left_ik_result1: ", left_ik_result1)
+    print("right_ik_result1: ", right_ik_result1)
+
+
+    #  left_ik_result1.append(mid_goals[0][7])
+    print("current_left_joints: ", current_left_joints.shape)
+    print("left_ik_result1: ", left_ik_result1.shape)
+
+    left_joints1 =  np.linspace(current_left_joints, left_ik_result1, half_traj_length, endpoint = False)
+    left_gripper1 = np.linspace(current_joints[0][6], mid_goals[0][7], half_traj_length, endpoint = False)
+    left_gripper1 = np.expand_dims(left_gripper1, axis=1)
+    left_traj1 = np.concatenate([left_joints1, left_gripper1], axis = 1)
+    # print("left_traj1: ", left_traj1.shape)
+
+    right_joints1 =  np.linspace(current_right_joints, right_ik_result1, half_traj_length, endpoint = False)
+    right_gripper1 = np.linspace(current_joints[1][6], mid_goals[1][7], half_traj_length, endpoint = False)
+    right_gripper1 = np.expand_dims(right_gripper1, axis=1)
+    right_traj1 = np.concatenate([right_joints1, right_gripper1], axis = 1)
+    # print("left_traj1: ", left_traj1)
+    # return left_traj1, right_traj1
+
+    left_joints2 =  np.linspace(left_ik_result1, left_ik_result2, half_traj_length)
+    left_gripper2 =  np.linspace(mid_goals[0][7], goals[0][7], half_traj_length)
+    left_gripper2 = np.expand_dims(left_gripper2, axis=1)
+    left_traj2 = np.concatenate([left_joints2, left_gripper2], axis = 1)
+
+    right_joints2 =  np.linspace(right_ik_result1, right_ik_result2, half_traj_length)
+    right_gripper2 =  np.linspace(mid_goals[1][7], goals[1][7], half_traj_length)
+    right_gripper2 = np.expand_dims(right_gripper2, axis=1)
+    right_traj2 = np.concatenate([right_joints2, right_gripper2], axis = 1)
+    
+    left_traj = np.concatenate([left_traj1, left_traj2], axis = 0)
+    right_traj = np.concatenate([right_traj1, right_traj2], axis = 0)
+
+
+    return left_traj, right_traj
+
+    # print("left_joints1: ", left_joints1.shape)
+    # print("left_gripper1: ", left_gripper1.shape)
+    # print("left_ik_result1: ", left_ik_result1)
+    # print("right_ik_result1: ", right_ik_result1)
+    # print("left_ik_result2: ", left_ik_result2)
+    # print("right_ik_result2: ", right_ik_result2)    

@@ -14,7 +14,7 @@ def RRcontrol(gdesired, q, K = 0.4, debug =True):
     maxiter = 100
     current_q = copy.deepcopy(q)
     
-    current_q = current_q.reshape(6,1)
+    current_q = current_q.reshape(6,-1)
     start = time.time()
     i = 0
     for i in range(maxiter):
@@ -47,7 +47,7 @@ def RRcontrol(gdesired, q, K = 0.4, debug =True):
         print("time cost: ", end - start)
     
     success = False
-    
+    current_q = current_q.reshape(-1)
     if(finalerr[0] < dist_threshold and finalerr[1] < angle_threshold):
         success = True
     return current_q, finalerr, success
