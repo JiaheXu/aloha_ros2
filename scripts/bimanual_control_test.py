@@ -52,6 +52,9 @@ gripper_left_command = None
 gripper_right_command = None
 node = None
 current_idx = 0
+save_data_idx = 0
+current_traj = []
+
 lock = threading.Lock()
 
 def opening_ceremony(
@@ -88,22 +91,16 @@ def opening_ceremony(
         moving_time=0.5
     )
 
-
-
-
-
 def callback(multiarray):
     # with lock:
 
-    
     global new_action
     global follower_bot_left
     global follower_bot_right
 
     action = np.array(multiarray.data).reshape(-1,2,8)
 
-
-    trajectory = copy.deepcopy(action[-2:-1,:,:])
+    trajectory = copy.deepcopy(action)
     dist_threshold = 0.01 # 1cm
     left_stack = [trajectory[0,0,0:8]]
     right_stack = [trajectory[0,1,0:8]]
@@ -126,17 +123,27 @@ def callback(multiarray):
     left_mid_point = get_mid_point(left_stack[:,0:3])
     right_mid_point = get_mid_point(right_stack[:,0:3])
     
-    left = [ get_transform2(left_stack[0]), get_transform2(left_stack[left_mid_point]), get_transform2(left_stack[-1]) ]
-    right = [ get_transform2(right_stack[0]), get_transform2(right_stack[right_mid_point]), get_transform2(right_stack[-1]) ]
-
-    follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
-    follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
-
+    follower_left_state_joints = follower_bot_left.core.joint_states.position[:7]
+    follower_right_state_joints = follower_bot_right.core.joint_states.position[:7]
     current_left_joints = np.array( follower_left_state_joints )
     current_right_joints = np.array( follower_right_state_joints )
 
+    current_joints = [current_left_joints, current_right_joints]
+    mid_goals = [ left_stack[left_mid_point], right_stack[right_mid_point] ]
+    goals = [left_stack[-1], right_stack[-1]]
+
+    left_traj, right_traj = get_trajectory( current_joints, mid_goals, goals)
+    left_traj = np.expand_dims(left_traj, axis=1)
+    right_traj = np.expand_dims(right_traj, axis=1)
+    with lock:
+        new_action = np.concatenate( [left_traj, right_traj], axis = 1)
 
 
+def save_data():
+    global save_data_idx
+    global current__traj
+    np.save("traj_track_{}".format(save_data_idx), current_traj, allow_pickle = True)
+    save_data_idx += 1
 
 def timer_callback():
     print("in timer call back")
@@ -148,16 +155,22 @@ def timer_callback():
     global gripper_left_command
     global gripper_right_command
     global node
+    global current_traj
 
     if(new_action is not None):
+        # save_data()
         current_action = copy.deepcopy( new_action )
         new_action = None
         current_idx = 0
+        
 
     if(current_action is None):
         return
 
     if(current_idx >= current_action.shape[0]):
+
+        save_data()
+
         current_action = None
         msg = Bool()
         msg.data = True
@@ -173,43 +186,23 @@ def timer_callback():
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
-    left_hand_goal = current_action[current_idx,0, 0:7 ]
-    left_hand_goal[1] -= 0.315
-    left_openness = current_action[current_idx,0, 7]
+    left_hand_goal = current_action[current_idx,0, 0:6 ]
+    left_openness = current_action[current_idx,0, 6]
 
-    right_hand_goal = current_action[current_idx,1, 0:7 ]
-    right_hand_goal[1] += 0.315
-    right_openness = current_action[current_idx,1, 7]
+    right_hand_goal = current_action[current_idx,1, 0:6 ]
+    right_openness = current_action[current_idx,1, 6]
 
     current_left_joints = np.array( follower_left_state_joints )
     current_right_joints = np.array( follower_right_state_joints )
-    # left hand
-    start = time.time()
-    
-    left_ik_result, err, success_left = custom_ik( left_hand_goal, current_left_joints, debug=False )
-    # right hand
-    right_ik_result, err, success_right = custom_ik( right_hand_goal, current_right_joints, debug=False )
-    end = time.time()
-    print("ik time: ", end -start)
 
-    success = success_left and success_left
-    # print("success: ", success)
-    print()
-    
+    current_traj.append([current_left_joints, current_right_joints, left_hand_goal, right_hand_goal])
+
+
     current_idx += 1
-    if(success == False ):
-        print("left: ", current_left_joints)
-        print("right: ", current_right_joints)
-        print("left goal: ", current_action[current_idx,0, 0:7 ])
-        print("right goal: ", current_action[current_idx,1, 0:7 ])
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        print("don't have a solution!!!!!!!!!!!!!!!!!!")
-        return
-    # print("left_ik_result: ", left_ik_result)
-    # print("right_ik_result: ", right_ik_result)
-    follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
-    follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+    follower_bot_left.arm.set_joint_positions(left_hand_goal, blocking=False)
+    follower_bot_right.arm.set_joint_positions(right_hand_goal, blocking=False)
+
+    # current_traj.append([current_left_joints, current_right_joints, left_ik_result, right_ik_result])
 
     gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
         left_openness
@@ -217,7 +210,6 @@ def timer_callback():
     gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
         right_openness
     )
-    # print("gripper: ", data_point["right_pos"][6])
     follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
     follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
 

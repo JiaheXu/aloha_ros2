@@ -70,6 +70,7 @@ def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
 
     current_left_joints = current_joints[0][0:6]
     current_right_joints = current_joints[1][0:6]
+
     current_left_gripper = current_joints[0][6]
     current_right_gripper = current_joints[1][6]
 
@@ -82,9 +83,6 @@ def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
     right_hand_mid_goal_transform = get_transform(right_hand_mid_goal)
 
     left_ik_result1, err, success_left = RRcontrol( left_hand_mid_goal_transform, current_left_joints, debug=False )
-    # print("before: ", left_ik_result1)
-    # trans1 = FwdKin(left_ik_result1)
-    # start = time.time()
     left_ik_result1 = bound_joints(left_ik_result1)
     # end = time.time()
     # print("time cost: ", end - start)
@@ -115,7 +113,7 @@ def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
     right_hand_goal_transform = get_transform(right_hand_goal)   
 
     left_ik_result2, err, success_left = RRcontrol( left_hand_goal_transform, left_ik_result1, debug=False )
-    left_ik_result1 = bound_joints(left_ik_result1)
+    left_ik_result2 = bound_joints(left_ik_result2)
 
     right_ik_result2, err, success_right = RRcontrol( right_hand_goal_transform, right_ik_result1, debug=False )
     right_ik_result2 = bound_joints(right_ik_result2)

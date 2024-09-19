@@ -30,6 +30,10 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 import torch
 from numpy import linalg as LA
+import rclpy
+from rclpy.node import Node
+
+from std_msgs.msg import String, Float32, Int8, UInt8, Bool, UInt32MultiArray, Int32, Header, Float32MultiArray, MultiArrayDimension
 
 
 def get_transform2( trans_7D):
@@ -85,76 +89,66 @@ def visualize_pcd(pcd, lefts = None, rights = None, curr_pose = None):
     vis.run()
     vis.destroy_window()
 
-def main():
-    
-    # data = np.load("./2arms_open_pen/1.npy", allow_pickle = True)
-    task = "" 
-    # data_idxs = [1, 4, 31, 32, 33, 34, 35]
-    # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
-    # idx =  2
-    file_dir = "case6"
-    length = 25
-    for idx in range(length):
-        print("idx: ", idx)
-        sample = np.load("./{}/step_{}.npy".format(file_dir, idx) , allow_pickle = True)
-        # print("sample: ", sample)
-        # print(sample.item())
-        sample = sample.item()
-        rgb = sample["rgb"]
-        xyz = sample["xyz"]
-        action = sample['action']
-        curr_gripper = sample['curr_gripper'][0,0]
+
+
+
+class MinimalPublisher(Node):
+
+    def __init__(self):
+        super().__init__('minimal_publisher')
+
+        task = "" 
+        # data_idxs = [1, 4, 31, 32, 33, 34, 35]
+        # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
+        # idx =  2
+        file_dir = "case5"
+        length = 25
+        # self.data = None
+        idx = 0
+        self.sample = np.load("./{}/step_{}.npy".format(file_dir, idx) , allow_pickle = True).item()
+
+        self.bimanual_ee_publisher = self.create_publisher(Float32MultiArray, "bimanual_ee_cmd", 1)
+
+        timer_period = 5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        action = self.sample['action']
+        array_msg = Float32MultiArray()
         
-        pcd_rgb = rgb.reshape(-1, 3)/255.0
-        pcd_xyz = xyz.reshape(-1, 3)
-        
+        array_msg.layout.dim.append(MultiArrayDimension())
+        array_msg.layout.dim.append(MultiArrayDimension())
+        array_msg.layout.dim.append(MultiArrayDimension())
 
-        pcd = o3d.geometry.PointCloud()
-        pcd.colors = o3d.utility.Vector3dVector( pcd_rgb )
-        pcd.points = o3d.utility.Vector3dVector( pcd_xyz )
-        # visualize_pcd(pcd)
-        right = []
-        left = []
-        curr_pose = []
-        print("curr_gripper: ", get_transform2(curr_gripper[0,0:7]))
-        curr_pose.append( get_transform2(curr_gripper[0,0:7]) )
-        curr_pose.append( get_transform2(curr_gripper[1,0:7]) )
+        array_msg.layout.dim[0].label = "steps"
+        array_msg.layout.dim[1].label = "hands"
+        array_msg.layout.dim[2].label = "pose"
 
-        # print("action: ", action.shape)
-        trajectory = action
-        print("trajectory: ", trajectory.shape)
-        # left.append( get_transform2( trajectory[-1,0,0:7]))
-        # right.append( get_transform2( trajectory[-1,1,0:7]))
+        array_msg.layout.dim[0].size = action.shape[0]
+        array_msg.layout.dim[1].size = action.shape[1]
+        array_msg.layout.dim[1].size = action.shape[2]
+        array_msg.layout.data_offset = 0
 
-        # print("last goal: ", get_transform2( trajectory[-1,0,0:7]))
-        print("last goal: ", get_transform2( trajectory[-1,0,0:7]))
-        left_stack = []
-        right_stack = []
-        dist_threshold = 0.01
+        array_msg.data = action.reshape([1, -1])[0].tolist();
 
-        for action_idx in range(trajectory.shape[0]):
-            if len(left_stack) < 1:
-                dist = LA.norm( trajectory[action_idx,0,0:3] - curr_gripper[0,0:3] )
-            else:
-                dist = LA.norm( trajectory[action_idx,0,0:3] - left_stack[-1][0:3] )
-            if(dist < dist_threshold):
-                continue
-            left_stack.append(trajectory[action_idx,0,0:7])
-            left.append( get_transform2( trajectory[action_idx,0,0:7]))
-        
-        for action_idx in range(trajectory.shape[0]):
-            if len(right_stack) < 1:
-                dist = LA.norm( trajectory[action_idx,1,0:3] - curr_gripper[1,0:3] )
-            else:
-                dist = LA.norm( trajectory[action_idx,1,0:3] - right_stack[-1][0:3] )
-            if(dist < dist_threshold):
-                continue
-            right_stack.append(trajectory[action_idx,1,0:7])
-            right.append( get_transform2( trajectory[action_idx,1,0:7]))
-        print("left: ", len(left))
-        print("right: ", len(right))
-        # left = []
-        visualize_pcd(pcd, left, right, curr_pose)
+        self.bimanual_ee_publisher.publish(array_msg)
+        print("sent !!!!!")
+        print("sent !!!!!") 
+        print("sent !!!!!")
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    minimal_publisher = MinimalPublisher()
+
+    rclpy.spin(minimal_publisher)
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":

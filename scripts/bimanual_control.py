@@ -52,6 +52,9 @@ gripper_left_command = None
 gripper_right_command = None
 node = None
 current_idx = 0
+save_data_idx = 0
+current_traj = []
+
 lock = threading.Lock()
 
 def opening_ceremony(
@@ -109,8 +112,15 @@ def callback(multiarray):
             # current_action = copy.deepcopy(action)
         # else:
             # new_action = copy.deepcopy(action)
-        new_action = copy.deepcopy(action[-2:-1,:,:])
-        # print("action: ", current_action.shape)
+        # new_action = copy.deepcopy(action[-2:-1,:,:])
+        new_action = copy.deepcopy(action)
+        print("new_action: ", new_action.shape)
+
+def save_data():
+    global save_data_idx
+    global current__traj
+    np.save("traj_track_{}".format(save_data_idx), current_traj, allow_pickle = True)
+    save_data_idx += 1
 
 def timer_callback():
     print("in timer call back")
@@ -122,6 +132,7 @@ def timer_callback():
     global gripper_left_command
     global gripper_right_command
     global node
+    global current_traj
 
     if(new_action is not None):
         current_action = copy.deepcopy( new_action )
@@ -132,6 +143,7 @@ def timer_callback():
         return
 
     if(current_idx >= current_action.shape[0]):
+        save_data()
         current_action = None
         msg = Bool()
         msg.data = True
@@ -184,6 +196,8 @@ def timer_callback():
     # print("right_ik_result: ", right_ik_result)
     follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
     follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+
+    current_traj.append([current_left_joints, current_right_joints, left_ik_result, right_ik_result])
 
     gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
         left_openness
