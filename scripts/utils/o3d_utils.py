@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 import copy
-
+from .math_utils import *
 def project_point( point_3d, color, image, extrinsic, intrinsic, radius = 5):
                 
     point4d = np.append(point_3d, 1)
@@ -91,7 +91,45 @@ def visualize_pcd_transform(pcd, left = None, right = None):
     view_ctl.set_lookat((0.0, 0.0, 0.3))  # set the original point as the center point of the window
     vis.run()
     vis.destroy_window()
+    
+def visualize_pcd(pcd, traj_lists = None, curr_pose = None):
 
+    coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    vis = o3d.visualization.VisualizerWithKeyCallback()
+    vis.create_window()
+    coor_frame.scale(0.05, center=(0., 0., 0.))
+    vis.add_geometry(coor_frame)
+    vis.get_render_option().background_color = np.asarray([255, 255, 255])
+
+    view_ctl = vis.get_view_control()
+
+    vis.add_geometry(pcd)
+
+    mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    mesh.scale(0.1, center=(0., 0., 0.) )
+    # if(use_arrow):
+    #     mesh = o3d.geometry.TriangleMesh.create_arrow( cylinder_radius=0.01, cone_radius=0.01, cylinder_height=0.005, cone_height=0.01, resolution=20, cylinder_split=4, cone_split=1 )
+    
+    if(traj_lists is not None):
+        for traj in traj_lists:
+            for point in traj:
+                new_mesh = copy.deepcopy(mesh).transform(point)
+                vis.add_geometry(new_mesh)
+
+
+
+    if(curr_pose is not None):
+        for pose in curr_pose:
+            curr_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+            curr_mesh.scale(0.2, center=(0., 0., 0.) )
+            curr_mesh = curr_mesh.transform(pose)
+            vis.add_geometry(curr_mesh)
+
+    view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
+    view_ctl.set_front((-0.3, 0.0, 0.2))  # set the positive direction of the x-axis toward you
+    view_ctl.set_lookat((0.0, 0.0, 0.3))  # set the original point as the center point of the window
+    vis.run()
+    vis.destroy_window()
 def visualize_pcd_delta_transform(pcd, start_ts = [], delta_transforms=[]):
 
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
@@ -124,12 +162,3 @@ def visualize_pcd_delta_transform(pcd, start_ts = [], delta_transforms=[]):
     vis.destroy_window()
 
 
-def get_transform( transform_7d ):
-
-    trans = transform_7d[0:3]
-    quat = transform_7d[3:]
-    t = np.eye(4)
-    t[:3, :3] = Rotation.from_quat( quat ).as_matrix()
-    t[:3, 3] = trans
-    # print(t)
-    return t
