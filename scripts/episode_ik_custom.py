@@ -46,15 +46,6 @@ def get_transform( trans_7D):
     # print(t)
     return t
 
-def get_cube_corners( bound_box ):
-    corners = []
-    corners.append( [ bound_box[0][0], bound_box[1][0], bound_box[2][0] ])
-    corners.append( [ bound_box[0][0], bound_box[1][1], bound_box[2][0] ])
-    corners.append( [ bound_box[0][1], bound_box[1][1], bound_box[2][0] ])
-    corners.append( [ bound_box[0][1], bound_box[1][0], bound_box[2][0] ])
-
-    return corners
-
 def visualize_pcd(pcd, traj_lists = None, curr_pose = None):
 
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
@@ -140,93 +131,44 @@ def main():
     y = []
     ik_err_list = []
     diff_list = []
+    current = raw_trajs[0][0][0:6]
     for idx, moment in enumerate( raw_trajs ):
-        if(idx == 0):
-            last_moment = moment
-            continue
         print(idx)
-        # print("current_left: ", moment[0])
-        # print("goal_left: ", last_moment[2])
-        current = FwdKin(moment[0][0:6])
-        left.append( current )
-        goal = FwdKin(last_moment[2][0:6])
-        action = sample["action"][idx-1,0,0:7]
-        print("goal: ", action[0:3])
+        print("current_left: ", current)
+
+        action = sample["action"][idx,0,0:7]
+        print("goal: ", action)
+        # action_distance = LA.norm(action -)
         action[1] -= 0.315
-        ik_err = get_7D_transform(goal) - action
-        # print("ik_err cm: ", LA.norm(ik_err[0:3]) * 100.0 )
-       	diff = get_7D_transform(current) - get_7D_transform(goal)
-        # print("diff cm: ", LA.norm( diff[0:3]) * 100)
-        goal[1,3] += 0.315
-        goals.append( goal )
-        last_moment = moment
-        ik_err_list.append(LA.norm(ik_err[0:3]) * 100)
-        diff_list.append( LA.norm( diff[0:3]) * 100)
-
-    new_goals = []
-    new_ik_err_list = []
-    new_diff_list = []
-    for idx, moment in enumerate( smooth_traj ):
-        if(idx == 0):
-            last_moment = moment
+        gdesired = get_transform( action )
+        K = 0.4
+        left_ik_result, err, success = RRcontrol(gdesired, current , K, debug = False)
+        print("left_ik_result: ", left_ik_result)
+        print("diff: ", left_ik_result - current )
+        if(np.max( np.abs( left_ik_result[0:3] - current[0:3]) ) > 0.2 ):
+            print("big jump !!!!")
             continue
-        print(idx)
-        print("current_left: ", moment[0])
-        print("goal_left: ", last_moment[2])
-        current = FwdKin(moment[0][0:6])
-        left.append( current )
-        goal = FwdKin(last_moment[2][0:6])
-        # ik_err = get_7D_transform(goal) - get_7D_transform(current)
-        # print("ik_err cm: ", LA.norm(ik_err[0:3]) * 100.0 )
-       	diff = get_7D_transform(current) - get_7D_transform(goal)
-        print("diff cm: ", LA.norm( diff[0:3]) * 100)
-        goal[1,3] += 0.315
-        new_goals.append( goal )
-        last_moment = moment
-        # new_ik_err_list.append(LA.norm(ik_err[0:3]) * 100)
-        new_diff_list.append( LA.norm( diff[0:3]) * 100)
+ 
+        current = left_ik_result
+    
 
+    # # visualize_pcd(pcd, [left, goals], curr_pose)
+    # raw_trajs_np = np.array( raw_trajs)
+    # print("raw_trajs_np: ", raw_trajs_np.shape)
+    # # print(y)
+    # plt.plot(x, raw_trajs_np[1:,0,0], 'o--', color='red', alpha=1.0, label = "joint1")
+    # plt.plot(x, raw_trajs_np[:-1,2,0], 'o--', color='red', alpha=0.3, label = "goal1")
 
-    # visualize_pcd(pcd, [left, goals], curr_pose)
-    raw_trajs_np = np.array( raw_trajs)
-    print("raw_trajs_np: ", raw_trajs_np.shape)
-    # print(y)
-    plt.plot(x, raw_trajs_np[1:,0,0], 'o--', color='red', alpha=1.0, label = "joint1")
-    plt.plot(x, raw_trajs_np[:-1,2,0], 'o--', color='red', alpha=0.3, label = "goal1")
+    # plt.plot(x, raw_trajs_np[1:,0,1], 'o--', color='green', alpha=1.0, label = "joint2")
+    # plt.plot(x, raw_trajs_np[:-1,2,1], 'o--', color='green', alpha=0.3, label = "goal2")
 
-    plt.plot(x, raw_trajs_np[1:,0,1], 'o--', color='green', alpha=1.0, label = "joint2")
-    plt.plot(x, raw_trajs_np[:-1,2,1], 'o--', color='green', alpha=0.3, label = "goal2")
-
-    plt.plot(x, raw_trajs_np[1:,0,2], 'o--', color='blue', alpha=1.0, label = "joint3")
-    plt.plot(x, raw_trajs_np[:-1,2,2], 'o--', color='blue', alpha=0.3, label = "goal3")
-    plt.legend()
-    plt.xlabel( "time step")
-    plt.ylabel( "joint value(rad)")
-    plt.title('joint vals')
-    plt.show()
-
-    smooth_traj_np = np.array(smooth_traj)
-    new_x = range( smooth_traj_np.shape[0] - 1)
-    plt.plot(new_x, smooth_traj_np[1:,0,0], 'o--', color='red', alpha=1.0, label = "joint1")
-    plt.plot(new_x, smooth_traj_np[:-1,2,0], 'o--', color='red', alpha=0.3, label = "goal1")
-    plt.plot(new_x, smooth_traj_np[1:,0,1], 'o--', color='green', alpha=1.0, label = "joint2")
-    plt.plot(new_x, smooth_traj_np[:-1,2,1], 'o--', color='green', alpha=0.3, label = "goal2")
-    plt.plot(new_x, smooth_traj_np[1:,0,2], 'o--', color='blue', alpha=1.0, label = "joint3")
-    plt.plot(new_x, smooth_traj_np[:-1,2,2], 'o--', color='blue', alpha=0.3, label = "goal3")
-    plt.legend()
-    plt.xlabel( "time step")
-    plt.ylabel( "joint value(rad)")
-    plt.title('joint vals')
-    plt.show()
-
-
-    plt.plot(x, ik_err_list, 'o--', color='red', alpha=1.0, label = "ik error")
-    plt.plot(x, diff_list, 'o--', color='blue', alpha=1.0, label = "real to goal")
-    plt.legend()
-    plt.xlabel( "time step")
-    plt.ylabel( "distance cm")
-    plt.title('distance (cm)')
-    plt.show()
+    # plt.plot(x, raw_trajs_np[1:,0,2], 'o--', color='blue', alpha=1.0, label = "joint3")
+    # plt.plot(x, raw_trajs_np[:-1,2,2], 'o--', color='blue', alpha=0.3, label = "goal3")
+    # plt.legend()
+    # plt.xlabel( "time step")
+    # plt.ylabel( "joint value(rad)")
+    # plt.title('joint vals')
+    # plt.show()
 
 if __name__ == "__main__":
     main()

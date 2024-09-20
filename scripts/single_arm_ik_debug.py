@@ -90,76 +90,24 @@ def custom_ik( goal_ee_7D, current_joints, debug=False ):
 
 def main() -> None:
    
-    # node = create_interbotix_global_node('aloha')
-    # # node = create_bimanual_global_node('bimanual')
+    current_left = np.array( [-0.1066, -0.7721,  1.1692, -0.6235, -0.0772,  0.5919])
+    goal = np.array( [ 0.3811,  0.1786,  0.1611,  0.0268,  0.1846, -0.1467,  0.9714] )
+    left_ik_result = np.array( [-0.3729, -0.1258,  0.8831, -0.1782, -0.3866,  0.1354] )
+    diff = np.array( [-0.2663,  0.6463, -0.2861,  0.4453, -0.3094, -0.4565] )
+    goal[1] -= 0.315
+    
+    current_position = get_7D_transform( FwdKin(current_left) )
+    gdesired = get_transform( goal )
+    print("pose difference: ", current_position[0:3] - goal[0:3])
 
-    # follower_bot_left = InterbotixManipulatorXS(
-    #     robot_model='vx300s',
-    #     robot_name='follower_left',
-    #     node=node,
-    #     iterative_update_fk=False,
-    # )
-    # follower_bot_right = InterbotixManipulatorXS(
-    #     robot_model='vx300s',
-    #     robot_name='follower_right',
-    #     node=node,
-    #     iterative_update_fk=False,
-    # )
-    # robot_startup(node)
-
-    # opening_ceremony(
-    #     follower_bot_left,
-    #     follower_bot_right,
-    # )
-
-    # gripper_left_command = JointSingleCommand(name='gripper')
-    # gripper_right_command = JointSingleCommand(name='gripper')
-
-   
-    task = "" 
-    file_dir = "case5"
-    length = 1
-    # current_joints = np.array( [0., 0., 0., 0.1, 0.1, 0.1])
-    for idx in range(length):
-        sample = np.load("./{}/step_{}.npy".format(file_dir, idx) , allow_pickle = True)
-        sample = sample.item()
-
-        goals = sample["action"]
-        
-        current_left_joints = sample['left_joints'][0:6]
-        for current_idx in range( goals.shape[0] ):
-            gdesired = get_transform( goals[current_idx,0,0:7] )
-        # for current_idx in range( 1 ):
-            # gdesired = get_transform( goals[-1,0,0:7] )
-            
-            gdesired[1,3] -= 0.315
-
-            K = 0.4
-            start = time.time()
-
-            left_ik_result, err, success = RRcontrol(gdesired, current_left_joints , K, debug = False)
-            # ik_result[0] -= 2.0 * np.pi
-            end = time.time()
-            if( success == False):
-                print("left: ", current_left_joints)
-                # print("right: ", current_right_joints)
-                print("left goal: ", goals[current_idx,0, 0:7 ])
-                # print("right goal: ", current_action[current_idx,1, 0:7 ])
-                print("don't have a solution!!!!!!!!!!!!!!!!!!")
-                print("don't have a solution!!!!!!!!!!!!!!!!!!")
-                print("don't have a solution!!!!!!!!!!!!!!!!!!")
-            current_left_joints = left_ik_result
-            # print("left_ik_result: ", left_ik_result)
-        # print("idx: ", idx)
-        transf = FwdKin(current_left_joints)
-        transf[1,3] += 0.315
-        # print("step final: ", transf)
-        # print("step goal: ", get_transform( goals[-1,0,0:7] ) )
-        print("left_ik_result: ", left_ik_result[0:3])
-        print()
-    # print("finished !!!!!!!!!!" )
-
-
+    K = 0.4
+    start = time.time()
+    left_ik_result, err, success = RRcontrol(gdesired, current_left , K, debug = True)
+    print("current_left: ", current_left)
+    print("left_ik_result: ", left_ik_result)
+    print("diff: ", left_ik_result - current_left )
+    if(np.max( np.abs( left_ik_result[0:3] - current_left[0:3]) ) > 0.2 ):
+        print("big jump !!!!")
 
 if __name__ == '__main__':
     main()
@@ -169,3 +117,6 @@ if __name__ == '__main__':
 #     from rclpy.duration import Duration
 #     from rclpy.constants import S_TO_NS
 #     DT_DURATION = Duration(seconds=0, nanoseconds=DT * S_TO_NS)
+
+
+# diff:  [-0.1924  0.4442 -0.1618  0.3692 -0.2513 -0.3871]
