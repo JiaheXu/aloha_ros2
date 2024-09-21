@@ -40,9 +40,9 @@ def main():
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
     end_ep = 1
     data_idxs =  range(1,end_ep+1)
-
+    interpolation_length = 26
     for data_idx in data_idxs:
-        episode = np.load("./processed_bimanual/{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
+        episode = np.load("./{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
         for idx, frame in enumerate(episode[0]):
 
             rgb  = episode[1][idx][0][0]
@@ -66,6 +66,10 @@ def main():
             right = []
             current_state = episode[4][idx].numpy()
             print("current_state: ", current_state)
+            traj_np = episode[5][idx].flatten(1, -1).numpy()
+            traj = traj_interpolation( traj_np )
+            print("traj: ", traj.shape)
+            # print("episode[5][idx]: ", traj_np)
             visualize_pcd(pcd)
 
 if __name__ == "__main__":

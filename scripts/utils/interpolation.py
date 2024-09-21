@@ -4,7 +4,7 @@ from numpy import linalg as LA
 from utils import *
 from math_tools import *
 
-def traj_interpolation( trajectory, interpolation_length = 20):
+def traj_interpolation( trajectory, interpolation_length = 50):
     if isinstance(trajectory, list):
         trajectory = np.array(trajectory)
     # Calculate the current number of steps
@@ -15,13 +15,17 @@ def traj_interpolation( trajectory, interpolation_length = 20):
     new_steps = np.linspace(0, 1, interpolation_length)
 
     resampled = np.empty((interpolation_length, trajectory.shape[1]))
-
     interpolator = CubicSpline(old_steps, trajectory[:, :-1])
+
     resampled[:, :-1] = interpolator(new_steps)
     last_interpolator = interp1d(old_steps, trajectory[:, -1])
     resampled[:, -1] = last_interpolator(new_steps)
 
-    resampled[:, 3:7] = normalise_quat(resampled[:, 3:7])
+    if trajectory.shape[1] == 8:
+        resampled[:, 3:7] = normalise_quat(resampled[:, 3:7])
+    elif trajectory.shape[1] == 16:
+        resampled[:, 3:7] = normalise_quat(resampled[:, 3:7])
+        resampled[:, 11:15] = normalise_quat(resampled[:, 11:15])
 
     return resampled
         
