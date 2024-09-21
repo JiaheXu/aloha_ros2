@@ -70,7 +70,10 @@ def main():
             traj = traj_interpolation( traj_np )
             print("traj: ", traj.shape)
             # print("episode[5][idx]: ", traj_np)
-            visualize_pcd(pcd)
+            for step in range(traj.shape[0]):
+                left.append( get_transform(traj[step][0:7]) )    
+                right.append( get_transform(traj[step][8:15]) )    
+            visualize_pcd(pcd, [left, right] )
 
 if __name__ == "__main__":
     main()
