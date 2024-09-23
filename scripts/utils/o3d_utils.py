@@ -23,12 +23,24 @@ def project_point( point_3d, color, image, extrinsic, intrinsic, radius = 5):
     # print("updated")
     return image
 
-def cropping(xyz, rgb, bound_box, label = None):
+def cropping(rgb, xyz, bound_box, label = None, return_image = True):
 
-    x = xyz[:,0]
-    y = xyz[:,1]
-    z = xyz[:,2]
+    x = xyz[:,:,0]
+    y = xyz[:,:,1]
+    z = xyz[:,:,2]
+
+    # print("bound_box: ", bound_box)
     valid_idx = np.where( (x>=bound_box[0][0]) & (x <=bound_box[0][1]) & (y>=bound_box[1][0]) & (y<=bound_box[1][1]) & (z>=bound_box[2][0]) & (z<=bound_box[2][1]) )
+
+    if(return_image):
+
+        cropped_rgb = np.zeros(rgb.shape)
+        cropped_xyz = np.zeros(xyz.shape) 
+        cropped_rgb[valid_idx] = rgb[valid_idx]
+        cropped_xyz[valid_idx] = xyz[valid_idx]
+
+        return cropped_rgb, cropped_xyz
+
     valid_xyz = xyz[valid_idx]
     valid_rgb = rgb[valid_idx]
     valid_label = None
@@ -68,7 +80,6 @@ def visualize_pcd_transform(pcd, left = None, right = None):
     mesh.scale(0.1, center=(0., 0., 0.) )
     
     # left_mesh.scale(0.1, center=(left[0][3], left[1][3], left[2][3]))
-
     # right_mesh.scale(0.1, center=(right[0][3], right[1][3], right[2][3]))
     
     if left is not None:

@@ -25,8 +25,7 @@ import torch
 from numpy.linalg import inv
 # from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromRosToOpen3d
 from scipy.spatial.transform import Rotation
-from utils.o3d_utils import *
-from utils.image_utils import *
+from utils import *
 
 def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, right_bias, frame_rate = 8, future_length = 30 ):
 
@@ -66,22 +65,11 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
 
         rgb, depth = transfer_camera_param(bgr, depth, o3d_intrinsic.intrinsic_matrix, original_image_size, resized_intrinsic_o3d.intrinsic_matrix, resized_image_size )
         # print("rgb: ", type(rgb))
+                
         im_color = o3d.geometry.Image(rgb)
         im_depth = o3d.geometry.Image(depth)
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
             im_color, im_depth, depth_scale=1000, depth_trunc=2000, convert_rgb_to_intensity=False)
-        
-        # original_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-        #         rgbd,
-        #         o3d_intrinsic
-        #         # resized_intrinsic
-        #     )
-        # original_pcd = original_pcd.transform(cam_extrinsic)
-        # xyz = np.array(original_pcd.points)
-        # rgb = np.array(original_pcd.colors)
-        # valid_xyz, valid_rgb, valid_label, cropped_pcd = cropping( xyz, rgb, bound_box )
-        # p = Projector(cropped_pcd)
-        # rgb, depth, xyz, rgbd, depth_uint = p.project_to_rgbd(256, 256, resized_intrinsic_np, inv(cam_extrinsic), 1000,10)
         
         all_valid_resized_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
                 rgbd,
@@ -92,6 +80,17 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         # visualize_pcd(all_valid_resized_pcd)
         xyz = xyz_from_depth(depth, resized_intrinsic_o3d.intrinsic_matrix, cam_extrinsic )
 
+        cropped_rgb, cropped_xyz = cropping( rgb, xyz, bound_box)
+        # save_np_image(cropped_rgb)
+        
+        filtered_rgb, filtered_xyz = denoise(cropped_rgb, cropped_xyz, debug= True)
+
+        # pcd_rgb = cropped_rgb.reshape(-1, 3) / 255.0
+        # pcd_xyz = cropped_xyz.reshape(-1, 3)
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.colors = o3d.utility.Vector3dVector( pcd_rgb )
+        # pcd.points = o3d.utility.Vector3dVector( pcd_xyz )
+        # visualize_pcd(pcd )
         if( len( np.where( np.isnan(xyz))[0] ) >0 ):
             print(np.where( np.isnan(xyz)))
             print(" x y z has invalid point !!!!!")
@@ -101,11 +100,13 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
 
         # xyz_rgb_validation(rgb, xyz)
 
-        resized_img_data = np.transpose(rgb, (2, 0, 1) ).astype(float)
+        resized_img_data = np.transpose(filtered_rgb, (2, 0, 1) ).astype(float)
         resized_img_data = resized_img_data / 255.0
         # print("resized_img_data: ", resized_img_data.shape)
-        resized_xyz = np.transpose(xyz, (2, 0, 1) ).astype(float)
+        resized_xyz = np.transpose(filtered_xyz, (2, 0, 1) ).astype(float)
         # print("resized_xyz: ", resized_xyz.shape)
+
+
         n_cam = 1
         obs = np.zeros( (n_cam, 2, 3, 256, 256) )
         obs[0][0] = resized_img_data
@@ -131,7 +132,7 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
             print("left_openess: ", left_openess)
             left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
-            right_transform = get_transform(point['right_ee'][0:3] )
+            right_transform = get_transform(point['right_ee'] )
             right_transform = right_transform @ right_bias
             right_rot = Rotation.from_matrix(right_transform[:3,:3])
             right_quat = right_rot.as_quat()
@@ -171,7 +172,7 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         # visualize_pcd_delta_transform(all_valid_resized_pcd, right_trajectory[0], delta_right_trajectory)
 
 
-        delta_left_transform = get_transform(left_trajectory[-1][0:3]) @ inv( get_transform(left_trajectory[0][0:3]) )
+        delta_left_transform = get_transform(left_trajectory[-1]) @ inv( get_transform(left_trajectory[0]) )
         delat_left_rot = Rotation.from_matrix(delta_left_transform[:3,:3])
         delta_left_quat = delat_left_rot.as_quat()
         delta_left_openess = left_trajectory[-1][-1]
@@ -186,7 +187,7 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         left_trajectories = left_trajectories.reshape(-1,1,8)
 
         
-        delta_right_transform = get_transform(right_trajectory[-1]) @ inv( get_transform(right_trajectory[0][0:3] ) )
+        delta_right_transform = get_transform(right_trajectory[-1]) @ inv( get_transform(right_trajectory[0] ) )
         delat_right_rot = Rotation.from_matrix(delta_right_transform[:3,:3])
         delta_right_quat = delat_right_rot.as_quat()
         delta_right_openess = right_trajectory[-1][-1]
@@ -251,7 +252,8 @@ def main():
         [0., 0., 1.0]
     ])
 
-    bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
+    # bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
+    bound_box = np.array( [ [0.05, 0.55], [ -0.5 , 0.5], [ -0.3 , 0.6] ] )
     task_name = args.task 
     print("task_name: ", task_name)
     processed_data_dir = "./processed_bimanual"
@@ -270,8 +272,8 @@ def main():
     print("processing: ", dir_path+file)
     data = np.load(dir_path+file, allow_pickle = True)
 
-    left_bias = get_transform( [ -0.075, 0.005, -0.010], [0., 0., 0., 1.] )
-    right_bias = get_transform( [-0.04, 0.005, 0.0], [0., 0., 0., 1.] )
+    left_bias = get_transform( [ -0.075, 0.005, -0.010 ,0., 0., 0., 1.] )
+    right_bias = get_transform( [-0.04, 0.005, 0.0, 0., 0., 0., 1.] )
     episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, right_bias)
     np.save("{}/{}/ep{}".format(processed_data_dir,task_name,args.data_index), episode)
     print("finished ", task_name, " data: ", args.data_index)
