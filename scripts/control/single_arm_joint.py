@@ -118,7 +118,7 @@ def main() -> None:
 
     follower_bot_right = InterbotixManipulatorXS(
         robot_model='vx300s',
-        robot_name='follower_right',
+        robot_name='follower_left',
         node=node,
         iterative_update_fk=False,
     )
@@ -137,9 +137,9 @@ def main() -> None:
     # print(len(episode))
     # for data_point in episode:
 
-    recorded_state_joints = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.])
+    recorded_state_joints = np.array([0., 0., 0.4, 0., 0.8, 0.])
 
-    for i in range(10):
+    for i in range(100):
         follower_bot_right.arm.set_joint_positions(recorded_state_joints, blocking=False)
         get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
 

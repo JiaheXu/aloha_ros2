@@ -91,9 +91,8 @@ def opening_ceremony(
         moving_time=0.5
     )
 
-def custom_ik(goal_ee_7D, current_joints, debug=False ):
+def custom_ik(goal_transform, current_joints, debug=False ):
 
-    goal_transform = get_transform(goal_ee_7D)
     K = 0.4
     result_q, finalerr, success =  RRcontrol(goal_transform, current_joints, K, debug = debug)
     # print("FwdKin: ", FwdKin(result_q))
@@ -143,7 +142,7 @@ def timer_callback():
         return
 
     if(current_idx >= current_action.shape[0]):
-        save_data()
+        # save_data()
         current_action = None
         msg = Bool()
         msg.data = True
@@ -154,6 +153,12 @@ def timer_callback():
         return
     # print("current: ", current_action[0:3,:,:])
     print("current_idx: ", current_idx)
+
+    # left_bias = get_transform( [ -0.10, 0.015, 0.010 ,0., 0., 0., 1.] )
+    left_bias = get_transform( [ -0.11, 0.015, 0.010 ,0., 0., 0., 1.] )
+    right_bias = get_transform( [-0.06, 0.005, -0.005, 0., 0., 0., 1.] )
+
+
 
     # print("now: ", time.time())
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
@@ -169,12 +174,15 @@ def timer_callback():
 
     current_left_joints = np.array( follower_left_state_joints )
     current_right_joints = np.array( follower_right_state_joints )
-    # left hand
+
     start = time.time()
     
-    left_ik_result, err, success_left = custom_ik( left_hand_goal, current_left_joints, debug=False )
+    # left hand
+    left_transform = get_transform(left_hand_goal) @ inv(left_bias)
+    left_ik_result, err, success_left = custom_ik( left_transform, current_left_joints, debug=False )
     # right hand
-    right_ik_result, err, success_right = custom_ik( right_hand_goal, current_right_joints, debug=False )
+    right_transform = get_transform(right_hand_goal) @ inv(right_bias)
+    right_ik_result, err, success_right = custom_ik( right_transform, current_right_joints, debug=False )
     end = time.time()
     print("ik time: ", end -start)
 

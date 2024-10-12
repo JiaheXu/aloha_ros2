@@ -228,15 +228,10 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
 
     episode = []
     episode.append(frame_ids[:-1]) # 0
-
-    episode.append([obs_tensors[i] for i in frame_ids[:-1]]) # 1
-        
+    episode.append([obs_tensors[i] for i in frame_ids[:-1]]) # 1e    
     episode.append([trajectories_tensor[i] for i in frame_ids[1:]]) # 2
-
     episode.append(camera_dicts) # 3
-
     episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 2
-
     episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 2
 
     return episode
@@ -278,7 +273,7 @@ def main():
     
     dir_path = './' + task_name + '/'
 
-    save_data_dir = processed_data_dir + '/' + task_name
+    save_data_dir = processed_data_dir + '/' + task_name + "_keypose"
     if ( os.path.isdir(save_data_dir) == False ):
         os.mkdir(save_data_dir)
         
@@ -289,8 +284,11 @@ def main():
 
     left_bias = get_transform( [ -0.075, 0.005, -0.010 ,0., 0., 0., 1.] )
     right_bias = get_transform( [-0.04, 0.005, 0.0, 0., 0., 0., 1.] )
+    
     episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, right_bias)
-    np.save("{}/{}/ep{}".format(processed_data_dir,task_name,args.data_index), episode)
+    
+    np.save("{}/{}/ep{}".format(processed_data_dir,task_name+"_keypose",args.data_index), episode)
+
     print("finished ", task_name, " data: ", args.data_index)
     print("")
 

@@ -74,9 +74,9 @@ class DataCollector(Node):
         self.left_hand_gripper_frames = ["follower_left/left_finger_link", "follower_left/right_finger_link"]
         self.right_hand_gripper_frames = ["follower_right/left_finger_link", "follower_right/right_finger_link"]
         self.left_base_frame = "follower_left/base_link"
-        self.right_base_frame = "follower_right/base_link"
+        # self.right_base_frame = "follower_right/base_link"
         # self.left_base_frame = "world"
-        # self.right_base_frame = "world"
+        self.right_base_frame = "world"
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -209,14 +209,25 @@ class DataCollector(Node):
 
         left_t.header.frame_id = 'master_camera'
         left_t.child_frame_id = "follower_left/base_link"
-        left_t.transform.translation.x = -0.288
-        left_t.transform.translation.y = 0.249
-        left_t.transform.translation.z = 0.373
+        left_t.transform.translation.x = -0.28704517
+        left_t.transform.translation.y = 0.25108174
+        left_t.transform.translation.z = 0.37209884
 
-        left_t.transform.rotation.x = -0.619
-        left_t.transform.rotation.y = 0.664
-        left_t.transform.rotation.z = -0.312
-        left_t.transform.rotation.w = -0.282
+        left_t.transform.rotation.x = -0.6007226
+        left_t.transform.rotation.y = 0.6804579
+        left_t.transform.rotation.z = -0.32371435
+        left_t.transform.rotation.w = -0.26705507
+
+        # left_t.header.frame_id = 'master_camera'
+        # left_t.child_frame_id = "follower_left/base_link"
+        # left_t.transform.translation.x = -0.288
+        # left_t.transform.translation.y = 0.249
+        # left_t.transform.translation.z = 0.373
+
+        # left_t.transform.rotation.x = -0.619
+        # left_t.transform.rotation.y = 0.664
+        # left_t.transform.rotation.z = -0.312
+        # left_t.transform.rotation.w = -0.282
 
         right_t.header.frame_id = 'master_camera'
         right_t.child_frame_id = "follower_right/base_link"
