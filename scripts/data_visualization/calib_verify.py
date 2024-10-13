@@ -182,8 +182,13 @@ def main():
         # left_transform = get_transform(   [ 0.03, 0.347, 0.0 ,0., 0., 0., 1.] ) @ left_transform @ get_transform(   [0., 0., 0., 0., 0., 0.04361939, 0.99904822] )
         # left_transform = get_transform(   [ 0.03, 0.357, 0.0 ,0., 0., 0., 1.] ) @ left_transform @ get_transform(   [0., 0., 0., 0., 0., 0.03053851, 0.99953359] )
 
-        left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.03053851, 0.99953359] ) @ left_transform
-        left_transform = left_transform @ get_transform( [-0.025, 0.004, 0.00,      0., 0., 0., 1.] )
+        # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.03053851, 0.99953359] ) @ left_transform  # 3.5degree
+        # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0., 1.] ) @ left_transform
+
+        # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.0348995,  0.99939083] ) @ left_transform  # 4degree
+        # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.01745241, 0.9998477] ) @ left_transform  # 2degree  
+        left_transform = get_transform(   [ 0.0, 0.365, -0.005 ,0., 0.,0.02617695, 0.99965732] ) @ left_transform
+        left_transform = left_transform @ get_transform( [-0.028, 0.004, -0.00,      0., 0., 0., 1.] )
 
 
         right_transform = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] ) @ right_transform
