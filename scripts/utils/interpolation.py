@@ -70,7 +70,7 @@ def bound_joints( joints ):
             # print("idx: ", idx)
     return joints            
 
-def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
+def get_three_points_trajectory(current_joints, goals, mid_goals = None, half_traj_length = 10):
 
     current_left_joints = current_joints[0][0:6]
     current_right_joints = current_joints[1][0:6]
@@ -88,11 +88,7 @@ def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
 
     left_ik_result1, err, success_left = RRcontrol( left_hand_mid_goal_transform, current_left_joints, debug=False )
     left_ik_result1 = bound_joints(left_ik_result1)
-    # end = time.time()
-    # print("time cost: ", end - start)
-    # trans2 = FwdKin(left_ik_result1)
-    # print("after: ", left_ik_result1)
-    # print("diff: ", trans1 - trans2)
+
     right_ik_result1, err, success_right = RRcontrol( right_hand_mid_goal_transform, current_right_joints, debug=False )
     right_ik_result1 = bound_joints(right_ik_result1)
 
@@ -167,12 +163,10 @@ def get_trajectory(current_joints, mid_goals, goals, half_traj_length = 10):
     left_traj = np.concatenate([left_traj1, left_traj2], axis = 0)
     right_traj = np.concatenate([right_traj1, right_traj2], axis = 0)
 
-
     return left_traj, right_traj
 
-    # print("left_joints1: ", left_joints1.shape)
-    # print("left_gripper1: ", left_gripper1.shape)
-    # print("left_ik_result1: ", left_ik_result1)
-    # print("right_ik_result1: ", right_ik_result1)
-    # print("left_ik_result2: ", left_ik_result2)
-    # print("right_ik_result2: ", right_ik_result2)    
+def get_keypose_trajectory(current_joints, goals):
+
+    traj_interpolation()
+
+    return left_traj, right_traj  

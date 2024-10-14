@@ -110,17 +110,17 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     trajectories_tensor = []
 
     # gripper end val is around 0.6 ~ 1.6
-    left_gripper_max = 0.0
-    left_gripper_min = 2.0
+    left_gripper_max = 1.6
+    left_gripper_min = 0.6
 
-    right_gripper_max = 0.0
-    right_gripper_min = 2.0
+    right_gripper_max = 1.6
+    right_gripper_min = 0.6
 
-    for point in data:
-        left_gripper_max = max(left_gripper_max, point["left_pos"][6])
-        left_gripper_min = min(left_gripper_min, point["left_pos"][6])
-        right_gripper_max = max(right_gripper_max, point["right_pos"][6])
-        right_gripper_min = min(right_gripper_min, point["right_pos"][6])
+    # for point in data:
+    #     left_gripper_max = max(left_gripper_max, point["left_pos"][6])
+    #     left_gripper_min = min(left_gripper_min, point["left_pos"][6])
+    #     right_gripper_max = max(right_gripper_max, point["right_pos"][6])
+    #     right_gripper_min = min(right_gripper_min, point["right_pos"][6])
 
     left_trajectory = []
     right_trajectory = []
@@ -203,9 +203,12 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
 
     # use absolute pose
     left_trajectories = np.array(left_trajectory)
+    print("left gripper: ", left_trajectories[:, 7])
     left_trajectories = left_trajectories.reshape(-1,1,8)
         
     right_trajectories = np.array(right_trajectory)
+    print("right gripper: ", right_trajectories[:, 7])
+
     right_trajectories = right_trajectories.reshape(-1,1,8)
 
     trajectories = np.concatenate( [left_trajectories, right_trajectories], axis = 1)
