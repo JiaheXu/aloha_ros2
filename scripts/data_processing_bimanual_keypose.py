@@ -26,6 +26,7 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 from scipy.signal import argrelextrema
 from utils import *
+from utils.visualize_keypose_frames import visualize_keyposes_and_point_clouds
 
 
 def get_eef_velocity_from_trajectories(trajectories):
@@ -236,6 +237,22 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     episode.append(camera_dicts) # 3
     episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 2
     episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 2
+
+    keypose_traj = (
+        [trajectories_tensor[i, [0]].float() for i in frame_ids]
+        + [trajectories_tensor[i, [1]].float() for i in frame_ids]
+    )
+    nonkeypose_traj = (
+        [trajectories_tensor[i, [0]].float() for i in range(trajectories_tensor.shape[0]) if i not in frame_ids]
+        + [trajectories_tensor[i, [1]].float() for i in range(trajectories_tensor.shape[0]) if i not in frame_ids]
+    )
+    visualize_keyposes_and_point_clouds(obs_tensors[0][:, [1]].float(),
+                                        obs_tensors[0][:, [0]].float(),
+                                        nonkeypose_traj,
+                                        keypose_traj,
+                                        save=True,
+                                        rotation_param="quat_from_query",
+                                        rand_inds=None)
 
     return episode
 
