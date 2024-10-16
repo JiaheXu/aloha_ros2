@@ -14,7 +14,7 @@ import blosc
 import torch
 import torch.nn.functional as F
 import PIL.Image as Image
-import moviepy.video.io.ImageSequenceClip
+# import moviepy.video.io.ImageSequenceClip
 import cv2
 
 import utils.pytorch3d_transforms as pytorch3d_transforms

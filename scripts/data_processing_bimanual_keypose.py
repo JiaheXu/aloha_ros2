@@ -100,7 +100,7 @@ def keypoint_discovery(trajectories, buffer_size=5):
     return keyframes, keyframe_inds
 
 
-def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, right_bias):
+def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias):
 
     episode = []
     frame_ids = []
@@ -111,12 +111,14 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     trajectories_tensor = []
 
     # gripper end val is around 0.6 ~ 1.6
-    left_gripper_max = 1.6
-    left_gripper_min = 0.6
+    left_gripper_max = 1.62
+    left_gripper_min = 0.62
 
-    right_gripper_max = 1.6
-    right_gripper_min = 0.6
+    right_gripper_max = 1.62
+    right_gripper_min = 0.62
 
+    gripper_max = 1.62
+    gripper_min = 0.62
     # for point in data:
     #     left_gripper_max = max(left_gripper_max, point["left_pos"][6])
     #     left_gripper_min = min(left_gripper_min, point["left_pos"][6])
@@ -186,19 +188,20 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         
         eps = 1e-3
         left_transform = get_transform(point['left_ee'] )
-        left_transform = left_transform @ left_bias
+        left_transform = left_bias @ left_transform @ left_tip_bias @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
         left_rot = Rotation.from_matrix(left_transform[:3,:3])
         left_quat = left_rot.as_quat()
-        left_openess = ( float(point["left_pos"][6]) - left_gripper_min ) / (left_gripper_max - left_gripper_min  + eps)
-        # print("range: ", left_gripper_max, " ", left_gripper_min)
+        left_gripper_joint = max ( min( float(point["left_pos"][6]) , gripper_max), gripper_min )
+        left_openess = ( left_gripper_joint - gripper_min ) / (gripper_max - gripper_min  + eps)
         print("left_openess: ", left_openess)
         left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
         right_transform = get_transform(point['right_ee'] )
-        right_transform = right_transform @ right_bias
+        right_transform = right_bias @ right_transform @ right_tip_bias @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
         right_rot = Rotation.from_matrix(right_transform[:3,:3])
         right_quat = right_rot.as_quat()
-        right_openess = ( float(point["right_pos"][6]) - right_gripper_min ) / (right_gripper_max - right_gripper_min + eps)
+        right_gripper_joint = max ( min( float(point["right_pos"][6]) , gripper_max), gripper_min )
+        right_openess = ( right_gripper_joint - gripper_min ) / (gripper_max - gripper_min + eps)
         print("right_openess: ", right_openess)
         right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
 
@@ -283,7 +286,7 @@ def main():
     ])
 
     # bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
-    bound_box = np.array( [ [0.05, 0.55], [ -0.5 , 0.5], [ -0.3 , 0.6] ] )
+    bound_box = np.array( [ [0.05, 0.65], [ -0.5 , 0.5], [ -0.1 , 0.6] ] )
     task_name = args.task 
     print("task_name: ", task_name)
     processed_data_dir = "./processed_bimanual"
@@ -302,10 +305,13 @@ def main():
     print("processing: ", dir_path+file)
     data = np.load(dir_path+file, allow_pickle = True)
 
-    left_bias = get_transform( [ -0.075, 0.005, -0.010 ,0., 0., 0., 1.] )
-    right_bias = get_transform( [-0.04, 0.005, 0.0, 0., 0., 0., 1.] )
+    left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
+    left_tip_bias = get_transform( [-0.028, 0.01, 0.01,      0., 0., 0., 1.] )
+
+    right_bias = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] )
+    right_tip_bias = get_transform( [-0.035, 0.01, -0.008,      0., 0., 0., 1.] )
     
-    episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, right_bias)
+    episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias)
     
     np.save("{}/{}/ep{}".format(processed_data_dir,task_name+"_keypose",args.data_index), episode)
 

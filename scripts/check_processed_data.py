@@ -35,17 +35,25 @@ from utils import *
 def main():
     
     # data = np.load("./2arms_open_pen/1.npy", allow_pickle = True)
-    task = "plate"
+    # task = "close_pen"
+    # task = "pouring_into_bowl" 
+    # task = "put_block_into_bowl" 
+    # task = "pick_up_plate"
+    task = "stack_block"
     # data_idxs = [1, 4, 31, 32, 33, 34, 35]
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
-    end_ep = 1
-    data_idxs =  range(1,end_ep+1)
+    start_ep = 1
+    end_ep = 40
+    data_idxs =  range(start_ep,end_ep)
     interpolation_length = 26
     for data_idx in data_idxs:
-        episode = np.load("./{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
+        episode = np.load("./processed_bimanual/{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
+        print("data_idx: ", data_idx)
         for idx, frame in enumerate(episode[0]):
-
+            if(idx % 2 !=0):
+                continue
             rgb  = episode[1][idx][0][0]
+            print("idx: ", idx)
             # print("episode: ", episode.shape)
             rgb = rgb.numpy()
             # print("rgb: ", rgb.shape)
@@ -66,10 +74,10 @@ def main():
             left = []
             right = []
             current_state = episode[4][idx].numpy()
-            print("current_state: ", current_state)
+            # print("current_state: ", current_state)
             traj_np = episode[5][idx].flatten(1, -1).numpy()
             traj = traj_interpolation( traj_np )
-            print("traj: ", traj.shape)
+            # print("traj: ", traj.shape)
             # print("episode[5][idx]: ", traj_np)
             for step in range(traj.shape[0]):
                 left.append( get_transform(traj[step][0:7]) )    

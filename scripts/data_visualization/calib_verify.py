@@ -101,6 +101,7 @@ def main():
     # parser.add_argument("-b", "--bag_in", default="./data/yellow_handle_mug.bag",  help="Input ROS bag name.")
     parser.add_argument("-t", "--task_dir", default="./",  help="Input ROS bag name.")
     parser.add_argument("-d", "--data_id", default="left_verify", help="data idx")
+    parser.add_argument("-v", "--make_video", default="1", help="make video")
     args = parser.parse_args()
     
     # task_dir = "./play_around"
@@ -109,8 +110,8 @@ def main():
     print("processing data: ", task_dir + "/" + data_id + ".npy" )
     data = np.load( task_dir + "/" + data_id + ".npy", allow_pickle = True)
 
-    make_video = True
-
+    make_video = int(args.make_video)
+    print("make_video: ", make_video)
     cam_extrinsic = get_transform( [-0.13913296, 0.053, 0.43643044 , -0.63127772, 0.64917582, -0.31329509, 0.28619116] )
     cam_intrinsic_np = np.array([
         [734.1779174804688, 0., 993.6226806640625],
@@ -145,12 +146,14 @@ def main():
     right_min_joint = 0.625
     right_max_joint = 1.610
 
-    make_video = 1
+
     for idx, point in enumerate( data, 0 ):
 
+        if(idx % 10 != 0):
+            continue
 
         if(make_video == 0):
-            if(idx < 420):
+            if(idx < 30):
                 continue
             if(idx % 10 != 0):
                 continue
@@ -187,12 +190,12 @@ def main():
 
         # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.0348995,  0.99939083] ) @ left_transform  # 4degree
         # left_transform = get_transform(   [ 0.010, 0.365, -0.005 ,0., 0., 0.01745241, 0.9998477] ) @ left_transform  # 2degree  
-        left_transform = get_transform(   [ 0.0, 0.365, -0.005 ,0., 0.,0.02617695, 0.99965732] ) @ left_transform
-        left_transform = left_transform @ get_transform( [-0.028, 0.004, -0.00,      0., 0., 0., 1.] )
+        left_transform = get_transform(   [ -0.01, 0.365, -0.015 ,0., 0.,0.02617695, 0.99965732] ) @ left_transform
+        left_transform = left_transform @ get_transform( [-0.028, 0.0, 0.01,      0., 0., 0., 1.] )
 
 
         right_transform = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] ) @ right_transform
-        right_transform = right_transform @ get_transform( [-0.035, 0., -0.003,      0., 0., 0., 1.] )
+        right_transform = right_transform @ get_transform( [-0.035, 0., -0.008,      0., 0., 0., 1.] )
 
  
         assigned_color = np.array([0,0,255])
@@ -209,8 +212,8 @@ def main():
         left_gripper_distance = (openness - left_min_joint) / (left_max_joint - left_min_joint) * max_diff / 2.0
         left_y = left_gripper_distance
         right_y = -1*left_gripper_distance
-        lh_left_tip = left_transform @ get_transform([0.092, left_y, 0, 0., 0., 0., 1.] )
-        lh_right_tip = left_transform @ get_transform([0.092, right_y, 0., 0., 0., 0., 1.]  )
+        lh_left_tip = left_transform @ get_transform([0.087, left_y, 0, 0., 0., 0., 1.] )
+        lh_right_tip = left_transform @ get_transform([0.087, right_y, 0., 0., 0., 0., 1.]  )
                 
         # left hand tips
         point_3d = np.array( [ lh_left_tip[0][3], lh_left_tip[1][3], lh_left_tip[2][3] ])

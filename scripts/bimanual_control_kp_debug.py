@@ -188,22 +188,22 @@ def timer_callback():
     # print("current: ", current_action[0:3,:,:])
     print("current_idx: ", current_idx)
 
-    left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
-    left_tip_bias = get_transform( [-0.028, 0.01, 0.01,      0., 0., 0., 1.] ) @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
+    # left_bias = get_transform( [ -0.10, 0.015, 0.010 ,0., 0., 0., 1.] )
+    left_bias = get_transform( [ -0.11, 0.015, 0.010 ,0., 0., 0., 1.] )
+    right_bias = get_transform( [-0.06, 0.005, -0.005, 0., 0., 0., 1.] )
 
-    right_bias = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] )
-    right_tip_bias = get_transform( [-0.035, 0.01, -0.008,      0., 0., 0., 1.] ) @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
 
 
     # print("now: ", time.time())
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
-    # all in robot arm frame
-    left_hand_goal = get_7D_transform( inv(left_bias) @ get_transform(current_action[current_idx,0,0:7]) @ inv(left_tip_bias) )
+    left_hand_goal = current_action[current_idx,0, 0:7 ]
+    left_hand_goal[1] -= 0.315
     left_openness = current_action[current_idx,0, 7]
 
-    right_hand_goal = get_7D_transform( inv(right_bias) @ get_transform(current_action[current_idx,1,0:7]) @ inv(right_tip_bias) )
+    right_hand_goal = current_action[current_idx,1, 0:7 ]
+    right_hand_goal[1] += 0.315
     right_openness = current_action[current_idx,1, 7]
 
     current_left_joints = np.array( follower_left_state_joints )
@@ -212,10 +212,10 @@ def timer_callback():
     start = time.time()
     
     # left hand
-    left_transform = get_transform(left_hand_goal) 
+    left_transform = get_transform(left_hand_goal) @ inv(left_bias)
     left_ik_result, err, success_left = custom_ik( left_transform, current_left_joints, debug=False )
     # right hand
-    right_transform = get_transform(right_hand_goal)
+    right_transform = get_transform(right_hand_goal) @ inv(right_bias)
     right_ik_result, err, success_right = custom_ik( right_transform, current_right_joints, debug=False )
     end = time.time()
     print("ik time: ", end -start)
@@ -289,10 +289,13 @@ def main() -> None:
     gripper_left_command = JointSingleCommand(name='gripper')
     gripper_right_command = JointSingleCommand(name='gripper')
 
-    node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback, 1)
+    # node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback, 1)
     idx = 0
     timer_period = 0.1  # second
     node.timer = node.create_timer(timer_period, timer_callback)
+
+    timer_period2 = 2  # second
+    node.timer2 = node.create_timer(timer_period2, callback )
 
     node.state_publisher = node.create_publisher(Bool, 'controller_finished', 1)
 

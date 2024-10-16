@@ -165,8 +165,53 @@ def get_three_points_trajectory(current_joints, goals, mid_goals = None, half_tr
 
     return left_traj, right_traj
 
-def get_keypose_trajectory(current_joints, goals):
+def get_two_points_trajectory(current_joints, goals , traj_length = 10):
 
-    traj_interpolation()
+    current_left_joints = current_joints[0][0:6]
+    current_right_joints = current_joints[1][0:6]
 
-    return left_traj, right_traj  
+    current_left_gripper = current_joints[0][6]
+    current_right_gripper = current_joints[1][6]
+
+    left_hand_goal = goals[0][0:7]
+    right_hand_goal = goals[1][0:7]
+
+    left_hand_goal_transform = get_transform(left_hand_goal)
+    right_hand_goal_transform = get_transform(right_hand_goal)
+
+    left_ik_result, err, success_left = RRcontrol( left_hand_goal_transform, current_left_joints, debug=False )
+    left_ik_result = bound_joints(left_ik_result)
+
+    right_ik_result, err, success_right = RRcontrol( right_hand_goal_transform, current_right_joints, debug=False )
+    right_ik_result = bound_joints(right_ik_result)
+
+    success = success_left and success_left
+    if(success == False ):
+        print("first part failed")
+        print("left: ", current_left_joints)
+        print("right: ", current_right_joints)
+        print("left goal: ", left_hand_mid_goal)
+        print("right goal: ", right_hand_mid_goal)
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        print("don't have a solution!!!!!!!!!!!!!!!!!!")
+        return None, None
+
+   
+
+    left_joints =  np.linspace(current_left_joints, left_ik_result, traj_length)
+    left_gripper = np.linspace(current_joints[0][6], goals[0][7], traj_length)
+    left_gripper = np.expand_dims(left_gripper, axis=1)
+    left_traj = np.concatenate([left_joints, left_gripper], axis = 1)
+    # print("left_traj1: ", left_traj1.shape)
+
+    right_joints =  np.linspace(current_right_joints, right_ik_result, traj_length)
+    right_gripper = np.linspace(current_joints[1][6], goals[1][7], traj_length)
+    right_gripper = np.expand_dims(right_gripper, axis=1)
+    right_traj = np.concatenate([right_joints, right_gripper], axis = 1)
+    # print("left_traj1: ", left_traj1)
+    # return left_traj1, right_traj1
+
+   
+
+    return left_traj, right_traj
