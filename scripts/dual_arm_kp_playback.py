@@ -118,7 +118,7 @@ def main() -> None:
     gripper_left_command = JointSingleCommand(name='gripper')
     gripper_right_command = JointSingleCommand(name='gripper')
 
-    episode = np.load("ep1.npy", allow_pickle = True)
+    episode = np.load("ep38.npy", allow_pickle = True)
 
 
     left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
