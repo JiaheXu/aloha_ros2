@@ -25,8 +25,14 @@ from numpy.linalg import inv
 # from lib_cloud_conversion_between_Open3D_and_ROS import convertCloudFromRosToOpen3d
 from scipy.spatial.transform import Rotation
 from scipy.signal import argrelextrema
+from scipy.ndimage import gaussian_filter1d
 from utils import *
 from utils.visualize_keypose_frames import visualize_keyposes_and_point_clouds
+
+
+OPENESS_TH = 0.5 # Threshold to decide if a gripper opens
+BUFFER_SIZE = 20
+STOP_TH = 0.001 # Threshold to decide if a gripper stops
 
 
 def get_eef_velocity_from_trajectories(trajectories):
@@ -83,14 +89,26 @@ def keypoint_discovery(trajectories, buffer_size=5):
         if i - local_max_A[-1] >= buffer_size:
             local_max_A.append(i)
 
+    # waypoints are frame that suddenly stop / move
+    smooth_kernel = 3
+    smooth_V = gaussian_filter1d(V, smooth_kernel)
+    gripper_motion_changed = smooth_V < STOP_TH
+    pad_gripper_motion_changed = np.pad(gripper_motion_changed,
+                                       (1, 1), mode='symmetric')
+    gripper_motion_changed_ids = np.where(
+        pad_gripper_motion_changed[:-1]
+        != pad_gripper_motion_changed[1:]
+    )[0]
+
     # waypoints are frames with changing gripper states
-    gripper_changed = gripper_state_changed(trajectories)
+    gripper_state_changed_ids = gripper_state_changed(trajectories)
 
     last_frame = [len(trajectories) - 1]
 
     keyframe_inds = (
         local_max_A +
-        gripper_changed.tolist() +
+        gripper_state_changed_ids.tolist() +
+        gripper_motion_changed_ids.tolist() +
         last_frame
     )
     keyframe_inds = np.unique(keyframe_inds)
@@ -219,15 +237,15 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     # visualize_pcd_transform(all_valid_resized_pcd, left_trajectory)
     # visualize_pcd_transform(all_valid_resized_pcd, right_trajectory)
     trajectories_tensor = torch.from_numpy(trajectories)
-    left_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0)
+    left_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= OPENESS_TH], axis=0)
                  for traj in left_trajectory]
     _, left_keyframe_inds = keypoint_discovery(
-        left_traj, buffer_size=20
+        left_traj, buffer_size=BUFFER_SIZE
     )
-    right_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0)
+    right_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= OPENESS_TH], axis=0)
                   for traj in right_trajectory]
     _, right_keyframe_inds = keypoint_discovery(
-        right_traj, buffer_size=20
+        right_traj, buffer_size=BUFFER_SIZE
     )
 
     frame_ids = np.unique(np.concatenate([left_keyframe_inds, right_keyframe_inds]))
