@@ -112,8 +112,9 @@ def callback(multiarray):
         # else:
             # new_action = copy.deepcopy(action)
         # new_action = copy.deepcopy(action[-2:-1,:,:])
+        # new_action = copy.deepcopy(action[0:15,:,:])
         new_action = copy.deepcopy(action)
-        print("new_action: ", new_action.shape)
+        # print("new_action: ", new_action.shape)
 
 def save_data():
     global save_data_idx
@@ -140,13 +141,17 @@ def timer_callback():
 
     if(current_action is None):
         return
+    if(current_idx >=15):
+        msg = Bool()
+        msg.data = True
+        node.state_publisher.publish(msg)
 
     if(current_idx >= current_action.shape[0]):
         # save_data()
         current_action = None
-        msg = Bool()
-        msg.data = True
-        node.state_publisher.publish(msg)
+        # msg = Bool()
+        # msg.data = True
+        # node.state_publisher.publish(msg)
         print("finished !!!")
         print("finished !!!")
         print("finished !!!")
@@ -154,21 +159,23 @@ def timer_callback():
     # print("current: ", current_action[0:3,:,:])
     print("current_idx: ", current_idx)
 
-    left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
+    left_bias = get_transform(   [ -0.01, 0.365, 0.00 ,0., 0.,0.02617695, 0.99965732] )
     left_tip_bias = get_transform( [-0.028, 0.01, 0.01,      0., 0., 0., 1.] ) @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
+    left_goal_bias = get_transform(   [ 0.0, 0., 0.0, 0., 0., 0., 1.0] )
 
-    right_bias = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] )
+    right_bias = get_transform(   [ 0.01, -0.315, 0.0, 0., 0., 0., 1.0] )
     right_tip_bias = get_transform( [-0.035, 0.01, -0.008,      0., 0., 0., 1.] ) @ get_transform([0.087, 0, 0., 0., 0., 0., 1.] )
+    right_goal_bias = get_transform(   [ 0.01, 0.0, 0.01, 0., 0., 0., 1.0] )
 
     # print("now: ", time.time())
     follower_left_state_joints = follower_bot_left.core.joint_states.position[:6]
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:6]
 
     # all in robot arm frame
-    left_hand_goal = get_7D_transform( inv(left_bias) @ get_transform(current_action[current_idx,0,0:7]) @ inv(left_tip_bias) )
+    left_hand_goal = get_7D_transform( inv(left_bias) @ get_transform(current_action[current_idx,0,0:7]) @ inv(left_tip_bias) @ left_goal_bias)
     left_openness = current_action[current_idx,0, 7]
 
-    right_hand_goal = get_7D_transform( inv(right_bias) @ get_transform(current_action[current_idx,1,0:7]) @ inv(right_tip_bias) )
+    right_hand_goal = get_7D_transform( inv(right_bias) @ get_transform(current_action[current_idx,1,0:7]) @ inv(right_tip_bias) @ right_goal_bias )
     right_openness = current_action[current_idx,1, 7]
 
     current_left_joints = np.array( follower_left_state_joints )
@@ -205,6 +212,24 @@ def timer_callback():
     follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
 
     current_traj.append([current_left_joints, current_right_joints, left_ik_result, right_ik_result])
+
+    # for pouring task
+    # if(left_openness < 0.5):
+    #     left_openness = 0.3
+
+    # if(right_openness < 0.88):
+    #     right_openness = 0.4
+
+
+    if(left_openness < 0.7):
+        left_openness = 0.2
+    else:
+        left_openness = 1.0
+
+    if(right_openness < 0.7):
+        right_openness = 0.2
+    else:
+        right_openness = 1.0
 
     gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
         left_openness

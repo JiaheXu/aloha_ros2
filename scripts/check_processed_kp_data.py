@@ -35,20 +35,20 @@ from utils import *
 def main():
     
     # data = np.load("./2arms_open_pen/1.npy", allow_pickle = True)
-    task = "close_pen"
-    # task = "pouring_into_bowl" 
-    # task = "put_block_into_bowl" 
+    # task = "close_pen"
+    task = "pouring_into_bowl" # not yet
+    # task = "put_block_into_bowl"  
     # task = "pick_up_plate"
     # task = "stack_block"
     # data_idxs = [1, 4, 31, 32, 33, 34, 35]
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
-    start_ep = 1
-    end_ep = 5
-    data_idxs =  range(start_ep,end_ep)
+    start_ep = 23
+    end_ep = 40
+    data_idxs =  range(start_ep,end_ep+1)
     interpolation_length = 26
     for data_idx in data_idxs:
-        episode = np.load("./processed_bimanual/{}_keypose/ep{}.npy".format(task, data_idx) , allow_pickle = True)
-        print("loading: ", "./processed_bimanual/{}_keypose/ep{}.npy".format(task, data_idx))
+        episode = np.load("./processed_bimanual_keypose/{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
+        print("loading: ", "./processed_bimanual_keypose/{}/ep{}.npy".format(task, data_idx))
         print("data_idx: ", data_idx)
         for idx, frame in enumerate(episode[0]):
             if(idx % 2 !=0):

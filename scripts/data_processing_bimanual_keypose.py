@@ -29,9 +29,16 @@ from scipy.ndimage import gaussian_filter1d
 from utils import *
 from utils.visualize_keypose_frames import visualize_keyposes_and_point_clouds
 
+# Threshold to decide if a gripper open
+# OPENESS_TH = 0.35  # close pen task
+# OPENESS_TH = 0.12  # pick_up_plate
+# OPENESS_TH = 0.65  # pouring into bowl
+# OPENESS_TH = 0.54  # put block into bowl
+# OPENESS_TH = 0.54  # stack block
 
-OPENESS_TH = 0.5 # Threshold to decide if a gripper opens
-BUFFER_SIZE = 20
+OPENESS_TH = 0.35 # Threshold to decide if a gripper opens
+# 0.3
+BUFFER_SIZE = 4
 STOP_TH = 0.001 # Threshold to decide if a gripper stops
 
 
@@ -307,14 +314,34 @@ def main():
     bound_box = np.array( [ [0.05, 0.65], [ -0.5 , 0.5], [ -0.1 , 0.6] ] )
     task_name = args.task 
     print("task_name: ", task_name)
-    processed_data_dir = "./processed_bimanual"
+
+
+    # OPENESS_TH = 0.35  # close pen task
+    if(task_name == "close_pen"):
+        OPENESS_TH = 0.35  # pick_up_plate
+
+    if(task_name == "pick_up_plate"):
+        OPENESS_TH = 0.12  # pick_up_plate
+    
+    if(task_name == "pouring_into_bowl"):        
+        OPENESS_TH = 0.65  # pouring into bowl
+
+    if(task_name == "put_block_into_bowl"):        
+        OPENESS_TH = 0.54  # put block into bowl
+        BUFFER_SIZE = 2
+        # STOP_TH = 0.1
+
+    if(task_name == "stack_block"):        
+        OPENESS_TH = 0.54  # stack block
+
+    processed_data_dir = "./processed_bimanual_keypose"
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)
 
     
     dir_path = './' + task_name + '/'
 
-    save_data_dir = processed_data_dir + '/' + task_name + "_keypose"
+    save_data_dir = processed_data_dir + '/' + task_name
     if ( os.path.isdir(save_data_dir) == False ):
         os.mkdir(save_data_dir)
         
@@ -331,7 +358,7 @@ def main():
     
     episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias)
     
-    np.save("{}/{}/ep{}".format(processed_data_dir,task_name+"_keypose",args.data_index), episode)
+    np.save("{}/{}/ep{}".format(processed_data_dir,task_name,args.data_index), episode)
 
     print("finished ", task_name, " data: ", args.data_index)
     print("")
