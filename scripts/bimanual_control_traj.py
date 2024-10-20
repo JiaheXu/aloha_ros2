@@ -141,21 +141,21 @@ def timer_callback():
 
     if(current_action is None):
         return
-    if(current_idx >=15):
-        msg = Bool()
-        msg.data = True
-        node.state_publisher.publish(msg)
+    # if(current_idx >=15):
+    #     msg = Bool()
+    #     msg.data = True
+    #     node.state_publisher.publish(msg)
 
-    if(current_idx >= current_action.shape[0]):
-        # save_data()
-        current_action = None
-        # msg = Bool()
-        # msg.data = True
-        # node.state_publisher.publish(msg)
-        print("finished !!!")
-        print("finished !!!")
-        print("finished !!!")
-        return
+    # if(current_idx >= current_action.shape[0]):
+    #     # save_data()
+    #     current_action = None
+    #     msg = Bool()
+    #     msg.data = True
+    #     node.state_publisher.publish(msg)
+    #     print("finished !!!")
+    #     print("finished !!!")
+    #     print("finished !!!")
+    #     return
     # print("current: ", current_action[0:3,:,:])
     print("current_idx: ", current_idx)
 
@@ -191,6 +191,13 @@ def timer_callback():
     right_ik_result, err, success_right = custom_ik( right_transform, current_right_joints, debug=False )
     end = time.time()
     print("ik time: ", end -start)
+    print("err: ", err)
+    print("left goal: ", current_action[current_idx,0,0:7])
+    
+    left_transform = FwdKin( follower_left_state_joints )
+    left_transform = left_bias @ left_transform @ left_tip_bias
+    
+    print("left position: ", get_7D_transform( left_transform ))
 
     success = success_left and success_left
     # print("success: ", success)
@@ -241,6 +248,18 @@ def timer_callback():
     follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
     follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
 
+
+    if(current_idx >= current_action.shape[0]):
+        # save_data()
+        current_action = None
+        msg = Bool()
+        msg.data = True
+        node.state_publisher.publish(msg)
+        print("finished !!!")
+        print("finished !!!")
+        print("finished !!!")
+        return
+
 def main() -> None:
     
     global current_action
@@ -281,7 +300,7 @@ def main() -> None:
 
     node.bimanual_ee_cmd_sub = node.create_subscription( Float32MultiArray, "bimanual_ee_cmd", callback, 1)
     idx = 0
-    timer_period = 0.1  # second
+    timer_period = 0.2  # second
     node.timer = node.create_timer(timer_period, timer_callback)
 
     node.state_publisher = node.create_publisher(Bool, 'controller_finished', 1)
