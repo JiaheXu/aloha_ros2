@@ -490,7 +490,7 @@ def visualize_keyposes_and_point_clouds(visible_pcd, visible_rgb,
     images = []
     for elev, azim in zip([10, 15, 20, 25, 30, 25, 20, 15, 45, 90],
                           [0, 45, 90, 135, 180, 225, 270, 315, 360, 360]):
-        ax.view_init(elev=elev, azim=azim, roll=0)
+        ax.view_init(elev=elev, azim=azim)
         canvas.draw()
         image_flat = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')
         image = image_flat.reshape(*reversed(canvas.get_width_height()), 3)

@@ -24,7 +24,7 @@ from interbotix_common_modules.common_robot.robot import (
 from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
 from interbotix_xs_msgs.msg import JointSingleCommand
 import rclpy
-import numpy as np
+
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 from sys import argv
@@ -38,12 +38,15 @@ from math_tools import *
 import threading
 
 
+import numpy as np
+np.set_printoptions(suppress=True,precision=4)
+from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout, Bool
 
 from rclpy.duration import Duration
 from rclpy.constants import S_TO_NS
 CONTROL_DT = 0.066 #15hz
 CONTROL_DT_DURATION = Duration(seconds=0, nanoseconds= CONTROL_DT * S_TO_NS)
-
+SLEEP_DT_DURATION = Duration(seconds=0, nanoseconds= 2 * S_TO_NS)
 
 def opening_ceremony(
     follower_bot_left: InterbotixManipulatorXS,
@@ -66,16 +69,34 @@ def opening_ceremony(
 
     # move arms to starting position
     start_arm_qpos = START_ARM_POSE[:6]
-    start_arm_qpos[4] += 0.4
+    # print("start_arm_qpos: ", [start_arm_qpos] * 2)
+    # start_arm_qpos[4] += 0.4
+    start_poses = [ 
+        # stack bowl 39
+        [-0.42644668, -0.10124274,  0.58444667, -0.59518456,  0.641204  , 0.3666214],
+        [ 0.40190297, -0.61512631,  0.50467968,  0.11965051,  0.78539819, -0.03067962]
+        # 31
+        # [-0.65194184, -0.46633017,  0.56297094, -0.02761165,  0.87897104, 0.38963112],
+        # [ 0.25157285, -0.53996128,  0.63506806,  0.11658254,  0.6657477 ,-0.06135923]
+        # 1
+        #[-0.27304858, -0.65194184,  0.82067972, -0.36968938,  0.5276894 , 0.39576706],
+        #[ 0.39423308, -0.52001953,  0.77159238,  0.08130098,  0.57370883, 0.00613592]
+        # start_arm_qpos
+    ]
+    # start_poses = [start_arm_qpos] * 2
+    print("start_poses: ", start_poses)
     move_arms(
         [follower_bot_left, follower_bot_right],
-        [start_arm_qpos] * 2,
+        # [start_arm_qpos] * 2,
+        start_poses,
         moving_time=4.0,
     )
+
+
     # move grippers to starting position
     move_grippers(
         [follower_bot_left, follower_bot_right],
-        [FOLLOWER_GRIPPER_JOINT_CLOSE, FOLLOWER_GRIPPER_JOINT_CLOSE],
+        [0.62, 1.62],
         moving_time=0.5
     )
 
@@ -107,6 +128,8 @@ def main() -> None:
 
     robot_startup(node)
 
+    node.state_publisher = node.create_publisher(Bool, 'controller_finished', 1)
+
     opening_ceremony(
         follower_bot_left,
         follower_bot_right,
@@ -118,7 +141,7 @@ def main() -> None:
     gripper_left_command = JointSingleCommand(name='gripper')
     gripper_right_command = JointSingleCommand(name='gripper')
 
-    episode = np.load("ep38.npy", allow_pickle = True)
+    episode = np.load("ep39.npy", allow_pickle = True)
 
 
     left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
@@ -133,8 +156,9 @@ def main() -> None:
         trajectory = data_point
         # trajectory[0,1] -= 0.03
         # trajectory[1,1] += 0.03
-        
-        # print("trajectory: ", trajectory)
+
+
+        print("trajectory: ", trajectory.shape)
         follower_left_state_joints = follower_bot_left.core.joint_states.position[:7]
         follower_right_state_joints = follower_bot_right.core.joint_states.position[:7]
         current_left_joints = np.array( follower_left_state_joints )
@@ -187,10 +211,8 @@ def main() -> None:
         # with lock:
         new_action = np.concatenate( [left_traj, right_traj], axis = 1)
         
-        print("new_action: ", new_action.shape)
-
-
-        print("openness: ", goals[0][7], " ", goals[1][7])
+        # print("new_action: ", new_action.shape)
+        # print("openness: ", goals[0][7], " ", goals[1][7])
 
         for step_idx in range(new_action.shape[0]):
 
@@ -206,8 +228,8 @@ def main() -> None:
             current_right_joints = np.array( follower_right_state_joints )
             print("current: ", current_right_joints[6] - 0.62)
             print("goal: ", right_openness)
-            # print("current: ", current_left_joints[6] - 0.6, " ", current_right_joints[6] - 0.6)
-            # print("goal: ", left_openness, " ", right_openness)
+            print("current: ", current_left_joints[6] - 0.6, " ", current_right_joints[6] - 0.6)
+            print("goal: ", left_openness, " ", right_openness)
 
             follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
             follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
@@ -219,10 +241,14 @@ def main() -> None:
                 right_openness
             )
 
-            # print("gripper: ", data_point["right_pos"][6])
             follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
             follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)
             get_interbotix_global_node().get_clock().sleep_for(CONTROL_DT_DURATION)
+
+        msg = Bool()
+        msg.data = True
+        node.state_publisher.publish(msg)
+        get_interbotix_global_node().get_clock().sleep_for(SLEEP_DT_DURATION)
         # print("data_point: ", data_point)
 
     print("finished !!!!!!!!!!" )

@@ -114,7 +114,7 @@ class DataCollector(Node):
 
         self.success_stop_pressed_last = False
         self.failure_stop_pressed_last = False
-        
+        self.start_recording_pressed_last = False
         # Call on_timer function every second
         self.timer_period = 2.0
         # self.timer = self.create_timer( self.timer_period, self.on_timer )
@@ -148,10 +148,18 @@ class DataCollector(Node):
         #self.depth_sub = Subscriber(self, Image, "/zed/zed_node/depth/depth_registered" )
         self.left_hand_sub = Subscriber(self, JointState, "/follower_left/joint_states")
         self.right_hand_sub = Subscriber(self, JointState, "/follower_right/joint_states")
+        self.left_controller_sub = Subscriber(self, JointState, "/leader_left/joint_states")
+        self.right_controller_sub = Subscriber(self, JointState, "/leader_right/joint_states")
 
-        # self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub, self.left_hand_sub, self.right_hand_sub],
-        self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub, self.left_hand_sub, self.right_hand_sub],
-                                                     queue_size, max_delay)
+        self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, self.depth_sub, self.left_hand_sub, self.right_hand_sub],queue_size, max_delay)
+        # self.time_sync = ApproximateTimeSynchronizer([self.bgr_sub, 
+        #     self.depth_sub, 
+        #     self.left_hand_sub, 
+        #     self.right_hand_sub, 
+        #     self.left_controller_sub, 
+        #     self.right_controller_sub 
+        #     ],queue_size, max_delay)
+
         self.time_sync.registerCallback(self.SyncCallback)
 
         self.pcd_publisher = self.create_publisher(PointCloud2, "rgb_pcd", 1)
@@ -194,6 +202,46 @@ class DataCollector(Node):
         # cloud_data=points
         # print("fields: ", fields)
         return pc2.create_cloud(header, fields, cloud_data)
+
+    def transform_to_numpy(self, ros_transformation):
+        x = ros_transformation.transform.translation.x
+        y = ros_transformation.transform.translation.y
+        z = ros_transformation.transform.translation.z
+        
+        qx = ros_transformation.transform.rotation.x
+        qy = ros_transformation.transform.rotation.y
+        qz = ros_transformation.transform.rotation.z
+        qw = ros_transformation.transform.rotation.w
+
+        return np.array( [x, y, z, qx, qy, qz, qw] )
+
+    def image_process(self, bgr, depth, intrinsic_np, original_img_size, resized_intrinsic_np, resized_img_size):
+        
+        cx = intrinsic_np[0,2]
+        cy = intrinsic_np[1,2]
+
+        fx_factor = resized_intrinsic_np[0,0] / intrinsic_np[0,0]
+        fy_factor = resized_intrinsic_np[1,1] / intrinsic_np[1,1]
+
+        raw_fx = resized_intrinsic_np[0,0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        raw_fy = resized_intrinsic_np[1,1] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+        raw_cx = resized_intrinsic_np[0,2] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        raw_cy = resized_intrinsic_np[1,2] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+
+        width = resized_img_size[0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+        height = resized_img_size[0] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+        
+        half_width = int( width / 2.0 )
+        half_height = int( height / 2.0 )
+
+        cropped_bgr = bgr[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width), :]
+        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+        processed_rgb = cv2.resize(cropped_rgb, resized_img_size)
+
+        cropped_depth = depth[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width)]
+        processed_depth = cv2.resize(cropped_depth, resized_img_size, interpolation =cv2.INTER_NEAREST)
+
+        return processed_rgb, processed_depth
 
     def publish_tf(self):
         left_t = TransformStamped()
@@ -256,48 +304,8 @@ class DataCollector(Node):
         self.tf_broadcaster.sendTransform(master_cam_t)
         # self.tf_broadcaster.sendTransform(cam_t)
 
-    def transform_to_numpy(self, ros_transformation):
-        x = ros_transformation.transform.translation.x
-        y = ros_transformation.transform.translation.y
-        z = ros_transformation.transform.translation.z
-        
-        qx = ros_transformation.transform.rotation.x
-        qy = ros_transformation.transform.rotation.y
-        qz = ros_transformation.transform.rotation.z
-        qw = ros_transformation.transform.rotation.w
-
-        return np.array( [x, y, z, qx, qy, qz, qw] )
-
-    def image_process(self, bgr, depth, intrinsic_np, original_img_size, resized_intrinsic_np, resized_img_size):
-        
-        cx = intrinsic_np[0,2]
-        cy = intrinsic_np[1,2]
-
-        fx_factor = resized_intrinsic_np[0,0] / intrinsic_np[0,0]
-        fy_factor = resized_intrinsic_np[1,1] / intrinsic_np[1,1]
-
-        raw_fx = resized_intrinsic_np[0,0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
-        raw_fy = resized_intrinsic_np[1,1] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
-        raw_cx = resized_intrinsic_np[0,2] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
-        raw_cy = resized_intrinsic_np[1,2] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
-
-        width = resized_img_size[0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
-        height = resized_img_size[0] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
-        
-        half_width = int( width / 2.0 )
-        half_height = int( height / 2.0 )
-
-        cropped_bgr = bgr[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width), :]
-        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
-        processed_rgb = cv2.resize(cropped_rgb, resized_img_size)
-
-        cropped_depth = depth[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width)]
-        processed_depth = cv2.resize(cropped_depth, resized_img_size, interpolation =cv2.INTER_NEAREST)
-
-        return processed_rgb, processed_depth
-
-    # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
     def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints):
+    # def SyncCallback(self, bgr, depth, left_hand_joints, right_hand_joints, left_controller_joints, right_controller_joints):
         # print("bgr timestamp:", bgr.header)
         # print("depth timestamp: ", depth.header)
         # print("left_hand_joints: ", left_hand_joints.header)
@@ -402,6 +410,9 @@ class DataCollector(Node):
         current_state["left_vel"] = np.array(left_hand_joints.velocity) 
         current_state["right_pos"] = np.array(right_hand_joints.position) 
         current_state["right_vel"] = np.array(right_hand_joints.velocity)
+
+        # current_state["left_controller_pos"] = np.array(left_controller_joints.position)  
+        # current_state["right_controller_pos"] = np.array(right_controller_joints.position)
 
         current_state["lh_grippers"] = np.array(lh_grippers) 
         current_state["rh_grippers"] = np.array(rh_grippers) 

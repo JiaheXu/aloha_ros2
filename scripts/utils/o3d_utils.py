@@ -172,4 +172,29 @@ def visualize_pcd_delta_transform(pcd, start_ts = [], delta_transforms=[]):
     vis.run()
     vis.destroy_window()
 
+def visualize_pcds(pcds):
 
+    coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    vis = o3d.visualization.VisualizerWithKeyCallback()
+    vis.create_window()
+    coor_frame.scale(0.2, center=(0., 0., 0.) )
+    vis.add_geometry(coor_frame)
+    vis.get_render_option().background_color = np.asarray([255, 255, 255])
+
+    view_ctl = vis.get_view_control()
+
+    
+
+    # mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    # mesh.scale(0.1, center=(0., 0., 0.))
+
+    # new_mesh = copy.deepcopy(mesh).transform( get_transform(start_t[0:3], start_t[3:7]) )
+    # vis.add_geometry(new_mesh)
+    for pcd in pcds:
+        vis.add_geometry(pcd)
+
+    view_ctl.set_up((1, 0, 0))  # set the positive direction of the x-axis as the up direction
+    view_ctl.set_front((-0.3, 0.0, 0.2))  # set the positive direction of the x-axis toward you
+    view_ctl.set_lookat((0.0, 0.0, 0.3))  # set the original point as the center point of the window
+    vis.run()
+    vis.destroy_window()

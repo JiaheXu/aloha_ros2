@@ -99,8 +99,8 @@ def main():
     
     parser = argparse.ArgumentParser(description="extract interested object and traj from rosbag")
     # parser.add_argument("-b", "--bag_in", default="./data/yellow_handle_mug.bag",  help="Input ROS bag name.")
-    parser.add_argument("-t", "--task_dir", default="./",  help="Input ROS bag name.")
-    parser.add_argument("-d", "--data_id", default="left_verify", help="data idx")
+    parser.add_argument("-t", "--task_dir", default="./test",  help="Input ROS bag name.")
+    parser.add_argument("-d", "--data_id", default="39", help="data idx")
     args = parser.parse_args()
     
     # task_dir = "./play_around"

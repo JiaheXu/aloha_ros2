@@ -27,6 +27,8 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
 from utils import *
 
+OPENESS_TH = 0.35 # Threshold to decide if a gripper opens
+
 def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, frame_rate = 8, future_length = 30 ):
 
     episode = []
@@ -132,6 +134,10 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
             left_quat = left_rot.as_quat()
             left_gripper_joint = max ( min( float(point["left_pos"][6]) , gripper_max), gripper_min )
             left_openess = ( left_gripper_joint - gripper_min ) / (gripper_max - gripper_min  + eps)
+            if(left_openess < OPENESS_TH):
+                left_openess = 0
+            else:
+                left_openess = 1
             print("left_openess: ", left_openess)
             left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
@@ -141,6 +147,10 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
             right_quat = right_rot.as_quat()
             right_gripper_joint = max ( min( float(point["right_pos"][6]) , gripper_max), gripper_min )
             right_openess = ( right_gripper_joint - gripper_min ) / (gripper_max - gripper_min + eps)
+            if(right_openess < OPENESS_TH):
+                right_openess = 0
+            else:
+                right_openess = 1
             print("right_openess: ", right_openess)
             right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
     
@@ -260,6 +270,28 @@ def main():
     bound_box = np.array( [ [0.05, 0.65], [ -0.5 , 0.5], [ -0.1 , 0.6] ] )
     task_name = args.task 
     print("task_name: ", task_name)
+
+    # OPENESS_TH = 0.35  # close pen task
+    if(task_name == "close_pen"):
+        OPENESS_TH = 0.35  # pick_up_plate
+
+    if(task_name == "pick_up_plate"):
+        OPENESS_TH = 0.12  # pick_up_plate
+    
+    if(task_name == "pouring_into_bowl"):        
+        OPENESS_TH = 0.65  # pouring into bowl
+
+    if(task_name == "put_block_into_bowl"):        
+        OPENESS_TH = 0.54  # put block into bowl
+        BUFFER_SIZE = 2
+        # STOP_TH = 0.1
+
+    if(task_name == "stack_block"):        
+        OPENESS_TH = 0.54  # stack block
+
+    if(task_name == "single_arm"):        
+        OPENESS_TH = 0.1  # stack block
+
     processed_data_dir = "./processed_bimanual"
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)

@@ -36,9 +36,9 @@ from utils.visualize_keypose_frames import visualize_keyposes_and_point_clouds
 # OPENESS_TH = 0.54  # put block into bowl
 # OPENESS_TH = 0.54  # stack block
 
-OPENESS_TH = 0.35 # Threshold to decide if a gripper opens
+OPENESS_TH = 0.1 # Threshold to decide if a gripper opens
 # 0.3
-BUFFER_SIZE = 4
+BUFFER_SIZE = 5
 STOP_TH = 0.001 # Threshold to decide if a gripper stops
 
 
@@ -218,6 +218,11 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         left_quat = left_rot.as_quat()
         left_gripper_joint = max ( min( float(point["left_pos"][6]) , gripper_max), gripper_min )
         left_openess = ( left_gripper_joint - gripper_min ) / (gripper_max - gripper_min  + eps)
+        if(left_openess < OPENESS_TH):
+            left_openess = 0
+        else:
+            left_openess = 1
+
         print("left_openess: ", left_openess)
         left_trajectory.append(np.array( [left_transform[0][3], left_transform[1][3], left_transform[2][3], left_quat[0], left_quat[1], left_quat[2], left_quat[3], left_openess ] ))
 
@@ -227,6 +232,10 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         right_quat = right_rot.as_quat()
         right_gripper_joint = max ( min( float(point["right_pos"][6]) , gripper_max), gripper_min )
         right_openess = ( right_gripper_joint - gripper_min ) / (gripper_max - gripper_min + eps)
+        if(right_openess < OPENESS_TH):
+            right_openess = 0
+        else:
+            right_openess = 1
         print("right_openess: ", right_openess)
         right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
 
@@ -244,12 +253,12 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     # visualize_pcd_transform(all_valid_resized_pcd, left_trajectory)
     # visualize_pcd_transform(all_valid_resized_pcd, right_trajectory)
     trajectories_tensor = torch.from_numpy(trajectories)
-    left_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= OPENESS_TH], axis=0)
+    left_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0)
                  for traj in left_trajectory]
     _, left_keyframe_inds = keypoint_discovery(
         left_traj, buffer_size=BUFFER_SIZE
     )
-    right_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= OPENESS_TH], axis=0)
+    right_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0)
                   for traj in right_trajectory]
     _, right_keyframe_inds = keypoint_discovery(
         right_traj, buffer_size=BUFFER_SIZE
@@ -310,8 +319,8 @@ def main():
         [0., 0., 1.0]
     ])
 
-    # bound_box = np.array( [ [0.0, 0.8], [ -0.4 , 0.4], [ -0.2 , 0.4] ] )
-    bound_box = np.array( [ [0.05, 0.65], [ -0.5 , 0.5], [ -0.1 , 0.6] ] )
+    bound_box = np.array( [ [0.05, 0.65], [ -0.5 , 0.5], [ -0.1 , 0.6] ] ) # original
+    # bound_box = np.array( [ [0.2, 0.6], [ -0.4 , 0.4], [ -0.1 , 0.6] ] )
     task_name = args.task 
     print("task_name: ", task_name)
 
@@ -333,6 +342,12 @@ def main():
 
     if(task_name == "stack_block"):        
         OPENESS_TH = 0.54  # stack block
+
+    if(task_name == "single_arm"):        
+        OPENESS_TH = 0.1  # stack block
+
+    if(task_name == "dual_arm"):        
+        OPENESS_TH = 0.1  # stack block
 
     processed_data_dir = "./processed_bimanual_keypose"
     if ( os.path.isdir(processed_data_dir) == False ):

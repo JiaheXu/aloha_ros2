@@ -89,15 +89,15 @@ def opening_ceremony(
     # print("start_arm_qpos: ", [start_arm_qpos] * 2)
     # start_arm_qpos[4] += 0.4
     start_poses = [ 
-        # 39
+        # stack bowl 39
         [-0.42644668, -0.10124274,  0.58444667, -0.59518456,  0.641204  , 0.3666214],
         [ 0.40190297, -0.61512631,  0.50467968,  0.11965051,  0.78539819, -0.03067962]
         # 31
         # [-0.65194184, -0.46633017,  0.56297094, -0.02761165,  0.87897104, 0.38963112],
         # [ 0.25157285, -0.53996128,  0.63506806,  0.11658254,  0.6657477 ,-0.06135923]
         # 1
-        # [-0.27304858, -0.65194184,  0.82067972, -0.36968938,  0.5276894 , 0.39576706],
-        # [ 0.39423308, -0.52001953,  0.77159238,  0.08130098,  0.57370883, 0.00613592]
+        #[-0.27304858, -0.65194184,  0.82067972, -0.36968938,  0.5276894 , 0.39576706],
+        #[ 0.39423308, -0.52001953,  0.77159238,  0.08130098,  0.57370883, 0.00613592]
         # start_arm_qpos
     ]
     # start_poses = [start_arm_qpos] * 2
@@ -243,7 +243,8 @@ def timer_callback():
     # print("goal: ", left_openness, " ", right_openness)
 
     follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
-    follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+    # follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
+
 
     if(left_openness < 0.2):
         left_openness = 0
@@ -256,11 +257,11 @@ def timer_callback():
         right_openness = 1
 
     gripper_left_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-        left_openness 
+        left_openness
     )
-    gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
-        right_openness
-    )
+    # gripper_right_command.cmd = LEADER2FOLLOWER_JOINT_FN(
+    #     right_openness
+    # )
     # print("gripper: ", data_point["right_pos"][6])
     follower_bot_left.gripper.core.pub_single.publish(gripper_left_command)
     follower_bot_right.gripper.core.pub_single.publish(gripper_right_command)

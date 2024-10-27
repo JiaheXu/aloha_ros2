@@ -73,10 +73,10 @@ class DataCollector(Node):
 
         self.left_hand_gripper_frames = ["follower_left/left_finger_link", "follower_left/right_finger_link"]
         self.right_hand_gripper_frames = ["follower_right/left_finger_link", "follower_right/right_finger_link"]
-        # self.left_base_frame = "follower_left/base_link"
-        # self.right_base_frame = "follower_right/base_link"
-        self.left_base_frame = "world"
-        self.right_base_frame = "world"
+        self.left_base_frame = "follower_left/base_link"
+        self.right_base_frame = "follower_right/base_link"
+        # self.left_base_frame = "world"
+        # self.right_base_frame = "world"
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -207,25 +207,27 @@ class DataCollector(Node):
         right_t.header.stamp = ros_time.to_msg()
         master_cam_t.header.stamp = ros_time.to_msg()
 
-        left_t.header.frame_id = 'world'
+        left_t.header.frame_id = 'master_camera'
         left_t.child_frame_id = "follower_left/base_link"
-        left_t.transform.translation.x = 0.0
-        left_t.transform.translation.y = 0.385
-        left_t.transform.translation.z = 0.0
-        left_t.transform.rotation.x = 0.0
-        left_t.transform.rotation.y = 0.0
-        left_t.transform.rotation.z = 0.0
-        left_t.transform.rotation.w = 1.0
+        left_t.transform.translation.x = -0.288
+        left_t.transform.translation.y = 0.249
+        left_t.transform.translation.z = 0.373
 
-        right_t.header.frame_id = 'world'
+        left_t.transform.rotation.x = -0.619
+        left_t.transform.rotation.y = 0.664
+        left_t.transform.rotation.z = -0.312
+        left_t.transform.rotation.w = -0.282
+
+        right_t.header.frame_id = 'master_camera'
         right_t.child_frame_id = "follower_right/base_link"
-        right_t.transform.translation.x = 0.0
-        right_t.transform.translation.y = -0.315
-        right_t.transform.translation.z = 0.0
-        right_t.transform.rotation.x = 0.0
-        right_t.transform.rotation.y = 0.0
-        right_t.transform.rotation.z = 0.0
-        right_t.transform.rotation.w = 1.0
+        right_t.transform.translation.x = 0.352
+        right_t.transform.translation.y = 0.231
+        right_t.transform.translation.z = 0.415
+
+        right_t.transform.rotation.x = -0.619
+        right_t.transform.rotation.y = 0.664
+        right_t.transform.rotation.z = -0.312
+        right_t.transform.rotation.w = -0.282
 
         master_cam_t.header.frame_id = 'world'
         master_cam_t.child_frame_id = "master_camera"
@@ -412,7 +414,8 @@ class DataCollector(Node):
         # print("left_hand_joints: ", left_hand_joints)
         self.last_data_time = data_time
         self.current_stack.append(current_state)
-
+        if( len(self.current_stack) > 1000):
+            self.current_stack.clear()
 
         bgr_np = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
         depth_np = np.array(self.br.imgmsg_to_cv2(depth, desired_encoding="mono16"))
