@@ -41,10 +41,11 @@ def main():
     # task = "pick_up_plate"
     # task = "stack_block"
     # task = "stack_bowl_single_arm"
-    task = "stack_bowl_dual_arm"  
+    # task = "stack_bowl_dual_arm"  
+    task = "stack_bowl" 
     # data_idxs = [1, 4, 31, 32, 33, 34, 35]
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
-    start_ep = 39
+    start_ep = 1
     end_ep = 50
     data_idxs =  range(start_ep,end_ep+1)
     interpolation_length = 26
@@ -60,7 +61,7 @@ def main():
             for idx, frame in enumerate(episode[0]):
                 #if(idx % 2 !=0):
                 #    continue
-                #if(idx !=0):
+                # if(idx !=0):
                 #    continue
                 rgb  = episode[1][idx][0][0]
                 print("idx: ", idx)

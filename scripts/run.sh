@@ -1,7 +1,7 @@
 for i in $(seq 1 50);
 do
-    python3 data_processing_bimanual_keypose.py -t stack_bowl_single_arm -d $i
-    python3 data_processing_bimanual.py -t stack_bowl_single_arm -d $i
+    python3 data_processing_bimanual_keypose.py -t stack_bowl -d $i
+    #python3 data_processing_bimanual.py -t stack_bowl_single_arm -d $i
     
     #python3 data_processing_bimanual_keypose.py -t single_arm -d $i
     #python3 data_processing_bimanual.py -t single_arm -d $i
