@@ -38,11 +38,12 @@ def main():
     # task = "close_pen"
     # task = "pouring_into_bowl" # not yet
     # task = "put_block_into_bowl"  
-    # task = "pick_up_plate"
+    task = "pick_up_plate"
     # task = "stack_block"
     # task = "stack_bowl_single_arm"
     # task = "stack_bowl_dual_arm"  
-    task = "stack_bowl" 
+    # task = "stack_bowl"
+    # task = "hand_over_block"
     # data_idxs = [1, 4, 31, 32, 33, 34, 35]
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
     start_ep = 1

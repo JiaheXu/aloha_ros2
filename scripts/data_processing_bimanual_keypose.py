@@ -132,7 +132,7 @@ def keypoint_discovery(trajectories, buffer_size=5):
         if idx in gripper_state_changed_ids:
             keyframe_inds.append(idx)
         else:
-            if LA.norm( trajectories[idx][ 0:3 ] - trajectories[ keyframe_inds[-1] ][ 0:3] ) > 0.05:
+            if LA.norm( trajectories[idx][ 0:3 ] - trajectories[ keyframe_inds[-1] ][ 0:3] ) > 0.08:
                 keyframe_inds.append(idx)
 
     
@@ -372,7 +372,7 @@ def main():
         OPENESS_TH = 0.35  # pick_up_plate
 
     if(task_name == "pick_up_plate"):
-        OPENESS_TH = 0.12  # pick_up_plate
+        OPENESS_TH = 0.2  # pick_up_plate
     
     if(task_name == "pouring_into_bowl"):        
         OPENESS_TH = 0.65  # pouring into bowl
@@ -393,6 +393,8 @@ def main():
     if(task_name == "stack_bowl"):        
         OPENESS_TH = 0.2  # stack block
 
+    if(task_name == "hand_over_block"):        
+        OPENESS_TH = 0.55  # stack block
 
     processed_data_dir = "./processed_bimanual_keypose"
     if ( os.path.isdir(processed_data_dir) == False ):
