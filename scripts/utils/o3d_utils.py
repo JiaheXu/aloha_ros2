@@ -103,7 +103,7 @@ def visualize_pcd_transform(pcd, left = None, right = None):
     vis.run()
     vis.destroy_window()
     
-def visualize_pcd(pcd, traj_lists = None, curr_pose = None):
+def visualize_pcd(pcd, traj_lists = None, curr_pose = None, drawlines = False):
 
     coor_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
     vis = o3d.visualization.VisualizerWithKeyCallback()
@@ -120,14 +120,39 @@ def visualize_pcd(pcd, traj_lists = None, curr_pose = None):
     mesh.scale(0.1, center=(0., 0., 0.) )
     # if(use_arrow):
     #     mesh = o3d.geometry.TriangleMesh.create_arrow( cylinder_radius=0.01, cone_radius=0.01, cylinder_height=0.005, cone_height=0.01, resolution=20, cylinder_split=4, cone_split=1 )
-    
+    # print("curr_pose: ", curr_pose)
     if(traj_lists is not None):
-        for traj in traj_lists:
-            for point in traj:
+
+        for traj_idx ,traj in enumerate( traj_lists, 0 ):
+            points = [ [0,0,0] ]
+            lines = []
+            colors = []
+            if(curr_pose is not None):
+                points.append( curr_pose[traj_idx][0:3,3] )
+                lines.append( [ len(points) - 1 , len(points) - 2])
+                colors.append( [1,0,0] )
+            for node_idx, point in enumerate( traj , 0 ):
                 new_mesh = copy.deepcopy(mesh).transform(point)
                 vis.add_geometry(new_mesh)
+                if drawlines:
+                    points.append(point[0:3,3])
+                    lines.append( [ len(points) - 1 , len(points) - 2])
+                    colors.append( [1,0,0] )
 
 
+            
+            if drawlines:
+                # lines.append( [ 0, len(points)])
+                # colors.append( [1,0,0] )
+                # print("points: ", len(points))
+                # print("lines: ", lines)
+                line_set = o3d.geometry.LineSet(
+                    points=o3d.utility.Vector3dVector(points),
+                    lines=o3d.utility.Vector2iVector(lines),
+                )
+                line_set.colors = o3d.utility.Vector3dVector(colors)
+                vis.add_geometry(line_set)
+                # o3d.visualization.draw_geometries([line_set])
 
     if(curr_pose is not None):
         for pose in curr_pose:

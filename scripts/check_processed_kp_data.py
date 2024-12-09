@@ -38,15 +38,26 @@ def main():
     # task = "close_pen"
     # task = "pouring_into_bowl" # not yet
     # task = "put_block_into_bowl"  
-    task = "pick_up_plate"
+
     # task = "stack_block"
     # task = "stack_bowl_single_arm"
     # task = "stack_bowl_dual_arm"  
-    # task = "stack_bowl"
+    
+    ######################################################### CVPR
+    # task = "close_marker"
     # task = "hand_over_block"
+    task = "pick_up_plate"
+    # task = "stack_blocks"
+    # task = "stack_bowls"
+    # task = "lift_ball"
+    # task = "straighten_yellow_rope"
+    # task = "open_pill_case"
+    # task = "open_marker"
+    # task = "pick_up_notebook"
+    # task = "pour_into_bowl"
     # data_idxs = [1, 4, 31, 32, 33, 34, 35]
     # data_idxs =  [1, 4, 31, 32, 33, 34, 35]
-    start_ep = 1
+    start_ep = 13
     end_ep = 50
     data_idxs =  range(start_ep,end_ep+1)
     interpolation_length = 26
@@ -54,7 +65,7 @@ def main():
     frame_by_frame = False
 
     for data_idx in data_idxs:
-        episode = np.load("./processed_bimanual_keypose/{}/ep{}.npy".format(task, data_idx) , allow_pickle = True)
+        episode = np.load("./processed_bimanual_keypose/{}/ep{}.npy".format(task + '+0', data_idx) , allow_pickle = True)
         # print("loading: ", "./processed_bimanual_keypose/{}/ep{}.npy".format(task, data_idx))
         print("data_idx: ", data_idx)
 
@@ -134,7 +145,7 @@ def main():
                     curr_pose.append(get_transform(current_state[0, 0:7]))
                     curr_pose.append(get_transform(current_state[1, 0:7]))
             
-            visualize_pcd(pcd, [left, right] , curr_pose)
+            visualize_pcd(pcd, [left, right] , curr_pose, drawlines = True)
 
 if __name__ == "__main__":
     main()

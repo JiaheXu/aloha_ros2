@@ -1,28 +1,19 @@
-for i in $(seq 1 50);
+for i in $(seq 1 45);
+# for i in $(seq 1 2);
 do
+    python3 data_processing_bimanual_keypose.py -t pour_into_bowl -d $i 
+    # python3 data_processing_bimanual_keypose.py -t pick_up_notebook -d $i 
+    # python3 data_processing_bimanual_keypose.py -t open_marker -d $i 
+    # python3 data_processing_bimanual_keypose.py -t open_pill_case -d $i 
+    # python3 data_processing_bimanual_keypose.py -t straighten_yellow_rope -d $i 
+    #python3 data_processing_bimanual_keypose.py -t lift_ball -d $i
+    #python3 data_processing_bimanual_keypose.py -t stack_blocks -d $i
+    #python3 data_processing_bimanual_keypose.py -t close_marker -d $i
+    #python3 data_processing_bimanual_keypose.py -t stack_bowls -d $i
+    
     #python3 data_processing_bimanual_keypose.py -t hand_over_block -d $i
-
-    #python3 data_processing_bimanual_keypose.py -t stack_bowl -d $i
-    #python3 data_processing_bimanual.py -t stack_bowl_single_arm -d $i
-    
-    #python3 data_processing_bimanual_keypose.py -t single_arm -d $i
-    #python3 data_processing_bimanual.py -t single_arm -d $i
-
-    #python3 data_processing_bimanual.py -t close_pen -d $i
-    # python3 data_processing_bimanual_keypose.py -t close_pen -d $i
-
-    #python3 data_processing_bimanual.py -t pick_up_plate -d $i
-    python3 data_processing_bimanual_keypose.py -t pick_up_plate -d $i
-    
-    #python3 data_processing_bimanual.py -t pouring_into_bowl -d $i
-    # python3 data_processing_bimanual_keypose.py -t pouring_into_bowl -d $i
-
-    #python3 data_processing_bimanual.py -t put_block_into_bowl -d $i
-    # python3 data_processing_bimanual_keypose.py -t put_block_into_bowl -d $i
-
-    #python3 data_processing_bimanual.py -t stack_block -d $i
-    #python3 data_processing_bimanual_keypose.py -t stack_block -d $i
+    #python3 data_processing_bimanual_keypose.py -t pick_up_plate -d $i
 done
 
-#    python3 data_processing_bimanual.py -t stack_block -d $i
+
 

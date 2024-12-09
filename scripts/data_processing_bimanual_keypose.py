@@ -71,7 +71,7 @@ def gripper_state_changed(trajectories):
     return np.where(changed)[0]
 
 
-def keypoint_discovery(trajectories, buffer_size=5):
+def keypoint_discovery(trajectories, distance_threhold = 0.08, buffer_size=5):
     """Determine way point from the trajectories.
 
     Args:
@@ -132,7 +132,7 @@ def keypoint_discovery(trajectories, buffer_size=5):
         if idx in gripper_state_changed_ids:
             keyframe_inds.append(idx)
         else:
-            if LA.norm( trajectories[idx][ 0:3 ] - trajectories[ keyframe_inds[-1] ][ 0:3] ) > 0.08:
+            if LA.norm( trajectories[idx][ 0:3 ] - trajectories[ keyframe_inds[-1] ][ 0:3] ) > distance_threhold:
                 keyframe_inds.append(idx)
 
     
@@ -143,7 +143,7 @@ def keypoint_discovery(trajectories, buffer_size=5):
     return keyframes, keyframe_inds
 
 
-def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias):
+def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_image_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_openness_threhold = 0.1, right_openness_threhold = 0.1, distance_threhold = 0.05):
 
     episode = []
     frame_ids = []
@@ -162,11 +162,6 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
 
     gripper_max = 1.62
     gripper_min = 0.62
-    # for point in data:
-    #     left_gripper_max = max(left_gripper_max, point["left_pos"][6])
-    #     left_gripper_min = min(left_gripper_min, point["left_pos"][6])
-    #     right_gripper_max = max(right_gripper_max, point["right_pos"][6])
-    #     right_gripper_min = min(right_gripper_min, point["right_pos"][6])
 
     left_trajectory = []
     right_trajectory = []
@@ -182,7 +177,7 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         left_gripper_joint = max ( min( float(point["left_pos"][6]) , gripper_max), gripper_min )
         left_openess = ( left_gripper_joint - gripper_min ) / (gripper_max - gripper_min  + eps)
         left_openess_real.append(left_openess)
-        if(left_openess < OPENESS_TH):
+        if(left_openess < left_openness_threhold):
             left_openess = 0
         else:
             left_openess = 1        
@@ -196,7 +191,7 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
         right_openess = ( right_gripper_joint - gripper_min ) / (gripper_max - gripper_min + eps)
         # print("right_openess: ", right_openess)
         right_openess_real.append(right_openess)
-        if(right_openess < OPENESS_TH):
+        if(right_openess < right_openness_threhold):
             right_openess = 0
         else:
             right_openess = 1
@@ -223,10 +218,10 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     trajectories_tensor = torch.from_numpy(trajectories)
     
     left_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0) for traj in left_trajectory]
-    _, left_keyframe_inds = keypoint_discovery( left_traj, buffer_size=BUFFER_SIZE )
+    _, left_keyframe_inds = keypoint_discovery( left_traj, distance_threhold, buffer_size=BUFFER_SIZE )
     
     right_traj = [np.concatenate([traj[:3], [0, 0, 0], traj[-1:] >= 0.5], axis=0) for traj in right_trajectory]
-    _, right_keyframe_inds = keypoint_discovery( right_traj, buffer_size=BUFFER_SIZE )
+    _, right_keyframe_inds = keypoint_discovery( right_traj, distance_threhold, buffer_size=BUFFER_SIZE )
 
     frame_ids = np.unique(np.concatenate([left_keyframe_inds, right_keyframe_inds]))
     print("frame_ids: ", frame_ids)
@@ -301,14 +296,6 @@ def process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, res
     episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 2
     episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 2
 
-    # episode = []
-    # episode.append(frame_ids[:-1]) # 0
-    # episode.append([obs_tensors[i] for i in frame_ids[:-1]]) # 1
-    # episode.append([trajectories_tensor[i] for i in frame_ids[1:]]) # 2
-    # episode.append(camera_dicts) # 3
-    # episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 2
-    # episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 2
-
     keypose_traj = (
         [trajectories_tensor[i, [0]].float() for i in frame_ids]
         + [trajectories_tensor[i, [1]].float() for i in frame_ids]
@@ -366,49 +353,92 @@ def main():
     task_name = args.task 
     print("task_name: ", task_name)
 
+    processed_data_dir = "./processed_bimanual_keypose"
+    if ( os.path.isdir(processed_data_dir) == False ):
+        os.mkdir(processed_data_dir)
 
-    # OPENESS_TH = 0.35  # close pen task
-    if(task_name == "close_pen"):
-        OPENESS_TH = 0.35  # pick_up_plate
-
-    if(task_name == "pick_up_plate"):
-        OPENESS_TH = 0.2  # pick_up_plate
     
     if(task_name == "pouring_into_bowl"):        
         OPENESS_TH = 0.65  # pouring into bowl
 
     if(task_name == "put_block_into_bowl"):        
         OPENESS_TH = 0.7  # put block into bowl
-        BUFFER_SIZE = 10
-        # STOP_TH = 0.1
-    if(task_name == "stack_block"):        
-        OPENESS_TH = 0.54  # stack block
 
-    if(task_name == "single_arm"):        
-        OPENESS_TH = 0.1  # stack block
+    left_openness_threhold = 0.2
+    right_openness_threhold = 0.2
+    distance_threhold = 0.05
+    #################################################################### CVPR tasks
 
-    if(task_name == "dual_arm"):        
-        OPENESS_TH = 0.1  # stack block
+    if(task_name == "stack_blocks"):        
+        # OPENESS_TH = 0.54  # stack block
+        left_openness_threhold = 0.56
+        right_openness_threhold = 0.56
+        # distance_threhold = 0.05
 
-    if(task_name == "stack_bowl"):        
-        OPENESS_TH = 0.2  # stack block
+    if(task_name == "stack_bowls"):        
+        # OPENESS_TH = 0.2  # stack block
+        left_openness_threhold = 0.2
+        right_openness_threhold = 0.2
 
-    if(task_name == "hand_over_block"):        
-        OPENESS_TH = 0.55  # stack block
+    if(task_name == "hand_over_block"):
+        left_openness_threhold = 0.56
+        right_openness_threhold = 0.56     
+        # OPENESS_TH = 0.55  # stack block
 
-    processed_data_dir = "./processed_bimanual_keypose"
-    if ( os.path.isdir(processed_data_dir) == False ):
-        os.mkdir(processed_data_dir)
 
-    
-    dir_path = './' + task_name + '/'
+    if(task_name == "pick_up_plate"):
+        OPENESS_TH = 0.2  # pick_up_plate
+        left_openness_threhold = 0.2
+        right_openness_threhold = 0.2
 
-    save_data_dir = processed_data_dir + '/' + task_name
+    if(task_name == "close_marker"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.35
+        right_openness_threhold = 0.35 
+
+    if(task_name == "open_marker"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.35
+        right_openness_threhold = 0.35  
+
+    if(task_name == "lift_ball"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.35
+        right_openness_threhold = 0.35
+        distance_threhold = 0.03
+
+    if(task_name == "straighten_yellow_rope"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.2
+        right_openness_threhold = 0.2
+        distance_threhold = 0.05
+
+    if(task_name == "open_pill_case"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.85
+        right_openness_threhold = 0.8
+        distance_threhold = 0.05
+
+    if(task_name == "pick_up_notebook"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.2
+        right_openness_threhold = 0.8
+        distance_threhold = 0.03
+
+    if(task_name == "pour_into_bowl"):
+        # OPENESS_TH = 0.35  # pick_up_plate
+        left_openness_threhold = 0.2
+        right_openness_threhold = 0.75
+        distance_threhold = 0.03
+
+    dir_path = "./raw_demo/" + task_name + '/'
+
+    save_data_dir = processed_data_dir + '/' + task_name + "+0"
     if ( os.path.isdir(save_data_dir) == False ):
         os.mkdir(save_data_dir)
         
    
-    file = str(args.data_index) + ".npy"
+    file =  str(args.data_index) + ".npy"
     print("processing: ", dir_path+file)
     data = np.load(dir_path+file, allow_pickle = True)
 
@@ -418,9 +448,9 @@ def main():
     right_bias = get_transform(   [ 0.01, -0.315, 0.00, 0., 0., 0., 1.0] )
     right_tip_bias = get_transform( [-0.035, 0.01, -0.008,      0., 0., 0., 1.] )
     
-    episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias)
+    episode = process_episode(data, cam_extrinsic, o3d_intrinsic, original_image_size, resized_intrinsic_o3d, resized_img_size, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_openness_threhold, right_openness_threhold, distance_threhold)
     
-    np.save("{}/{}/ep{}".format(processed_data_dir,task_name,args.data_index), episode)
+    np.save("{}/{}/ep{}".format(processed_data_dir,task_name + "+0",args.data_index), episode)
 
     print("finished ", task_name, " data: ", args.data_index)
     print("")

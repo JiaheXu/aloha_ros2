@@ -89,15 +89,10 @@ def opening_ceremony(
     # print("start_arm_qpos: ", [start_arm_qpos] * 2)
     # start_arm_qpos[4] += 0.4
     start_poses = [ 
-        [-0.19174761, -0.85442734,  0.56603891, -0.13499032,  0.71330106, 0.31753403],
-        [ 0.12578642, -0.65500981,  0.44551469,  0.04141748,  0.6948933 , 0.02300971]
-        # 39
-        # [-0.42644668, -0.10124274,  0.58444667, -0.59518456,  0.641204  , 0.3666214],
-        # [ 0.40190297, -0.61512631,  0.50467968,  0.11965051,  0.78539819, -0.03067962]
-        # 31
-        # [-0.65194184, -0.46633017,  0.56297094, -0.02761165,  0.87897104, 0.38963112],
-        # [ 0.25157285, -0.53996128,  0.63506806,  0.11658254,  0.6657477 ,-0.06135923]
-        # 1
+        # close marker
+        [-0.39269909, -0.83908749,  0.43258259, -0.23930101,  0.81147587, 0.23469907],
+        [0.23469907, -0.69949526,  0.32213598,  0.42644668,  0.85749531, -0.41877678]
+        # stack bowl
         # [-0.27304858, -0.65194184,  0.82067972, -0.36968938,  0.5276894 , 0.39576706],
         # [ 0.39423308, -0.52001953,  0.77159238,  0.08130098,  0.57370883, 0.00613592]
         # start_arm_qpos
@@ -115,7 +110,7 @@ def opening_ceremony(
     # move grippers to starting position
     move_grippers(
         [follower_bot_left, follower_bot_right],
-        [0.62, 1.62],
+        [1.62, 1.62],
         moving_time=0.5
     )
 
@@ -139,7 +134,11 @@ def callback(multiarray):
         action = np.array(multiarray.data).reshape(-1,2,8)
 
         trajectory = copy.deepcopy(action)
-        print("trajectory: ", trajectory.shape)
+        print("right goal: ", trajectory[0,1,:])
+
+        if(trajectory[0,1,2] < -0.03):
+            trajectory[0,1,7] = 0
+
         dist_threshold = 0.01 # 1cm
 
         follower_left_state_joints = follower_bot_left.core.joint_states.position[:7]
@@ -185,6 +184,13 @@ def callback(multiarray):
 
         left_traj = np.expand_dims(left_stack, axis=1)
         right_traj = np.expand_dims(right_stack, axis=1)
+        # print("left_z: ", trajectory[0,0,3])
+        if(trajectory[0,0,2] < -0.03):
+            left_traj[-1,-1,-1] = 0
+
+
+        # print("left_traj: ", left_traj.shape)
+        # print("left_traj: ", left_traj)
         # with lock:
         new_action = np.concatenate( [left_traj, right_traj], axis = 1)
         print("new_action: ", new_action.shape)
@@ -239,20 +245,25 @@ def timer_callback():
     follower_right_state_joints = follower_bot_right.core.joint_states.position[:7]
     current_left_joints = np.array( follower_left_state_joints )
     current_right_joints = np.array( follower_right_state_joints )
-    # print("current: ", current_right_joints[6] - 0.62)
+    
+    # all convert to robot frame
+    left_transform = FwdKin(current_left_joints)
+    left_tranform_7D = get_7D_transform( left_transform )
+
+    # print("current left: ", left_tranform_7D)
     # print("goal: ", right_openness)
     # print("current: ", current_left_joints[6] - 0.6, " ", current_right_joints[6] - 0.6)
-    # print("goal: ", left_openness, " ", right_openness)
+    # print("goal: ", left_openness, " ", left_openness)
 
     follower_bot_left.arm.set_joint_positions(left_ik_result, blocking=False)
     follower_bot_right.arm.set_joint_positions(right_ik_result, blocking=False)
 
-    if(left_openness < 0.2):
+    if(left_openness < 0.35 ):
         left_openness = 0
     else:
         left_openness = 1
 
-    if(right_openness < 0.2):
+    if(right_openness < 0.35):
         right_openness = 0
     else:
         right_openness = 1

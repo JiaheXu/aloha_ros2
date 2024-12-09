@@ -141,7 +141,7 @@ def main() -> None:
     gripper_left_command = JointSingleCommand(name='gripper')
     gripper_right_command = JointSingleCommand(name='gripper')
 
-    episode = np.load("ep39.npy", allow_pickle = True)
+    episode = np.load("ep40.npy", allow_pickle = True)
 
 
     left_bias = get_transform(   [ -0.01, 0.365, -0.0 ,0., 0.,0.02617695, 0.99965732] )
@@ -217,10 +217,10 @@ def main() -> None:
         for step_idx in range(new_action.shape[0]):
 
             left_ik_result = new_action[step_idx,0,0:6]
-            left_openness = new_action[step_idx,0,6]
+            left_openness = new_action[step_idx,0,6] - 0.1
 
             right_ik_result = new_action[step_idx,1,0:6]
-            right_openness = new_action[step_idx,1,6]
+            right_openness = new_action[step_idx,1,6] - 0.1
 
             follower_left_state_joints = follower_bot_left.core.joint_states.position[:7]
             follower_right_state_joints = follower_bot_right.core.joint_states.position[:7]
