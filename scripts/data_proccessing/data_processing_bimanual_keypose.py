@@ -211,11 +211,12 @@ def main():
     parser = argparse.ArgumentParser(description="extract interested object and traj from rosbag")
     parser.add_argument("-d", "--data_index", default=1,  help="Input data index.")    
     parser.add_argument("-t", "--task", default="lift_ball",  help="Input task name.")
+    parser.add_argument("-p", "--project", default="aloha",  help="project name.") 
     
     args = parser.parse_args()
     # bag_dir = "./segmented_" + args.task + "/" + str(args.data_index) + ".bag"
     # traj_dir = "./segmented_" + args.task + "/" + str(args.data_index) + ".npy"
-    env = load_yaml( "../config/env.yaml" )
+    env = load_yaml( "~/data/config/env.yaml" )
 
     world_2_head = np.array( env.get("world_2_head") )
     
@@ -235,11 +236,11 @@ def main():
     task_name = args.task 
     print("task_name: ", task_name)
 
-    processed_data_dir = "/home/jiahe/data/processed_bimanual_keypose"
+    processed_data_dir = "~/data/aloha/keypose"
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)
 
-    dir_path = "/home/jiahe/data/raw_demo/" + task_name + '/'
+    dir_path = "~/data/raw_demo/" + task_name + '/'
 
     save_data_dir = processed_data_dir + '/' + task_name + "+0"
     if ( os.path.isdir(save_data_dir) == False ):
