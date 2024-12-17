@@ -194,11 +194,9 @@ class DataCollector(Node):
         self.right_controller_sub = Subscriber(self, JointState, "/leader_right/joint_states")
 
         self.time_sync = ApproximateTimeSynchronizer([
-            self.bgr_sub, self.depth_sub, 
-            self.left_rgb_sub, self.left_depth_sub, 
-            self.right_rgb_sub, self.right_depth_sub, 
-            self.left_hand_sub, self.right_hand_sub,
-            self.left_controller_sub, self.right_controller_sub
+            self.bgr_sub,
+            self.left_hand_sub,
+            self.right_hand_sub,
             ]
             ,queue_size, max_delay)
 
@@ -211,95 +209,63 @@ class DataCollector(Node):
         # self.timer = self.create_timer(timer_period, self.publish_tf)
 
 
-    def SyncCallback(self, bgr, depth, left_rgb, left_depth, right_rgb, right_depth, left_hand_joints, right_hand_joints, left_controller_joints, right_controller_joints):
-        
-        # print("bgr timestamp:", bgr.header.stamp)
-        # print("depth timestamp: ", depth.header.stamp)
-
-        # print("left_rgb timestamp:", left_rgb.header.stamp)
-        # print("left_depth timestamp: ", left_depth.header.stamp)
-
-        # print("right_rgb timestamp:", right_rgb.header.stamp)
-        # print("right_depth timestamp: ", right_depth.header.stamp)
-
-        # print("left_hand_joints: ", left_hand_joints.header.stamp)
-        # print("right_hand_joints: ", right_hand_joints.header.stamp)
-
-        # print("left_hand_joints: ", left_controller_joints.header.stamp)
-        # print("right_hand_joints: ", right_controller_joints.header.stamp)
+    def SyncCallback(self, bgr, left_hand_joints, right_hand_joints):
 
         data_time = time.time()
 
         if(data_time - self.last_data_time < self.time_diff):
             return
         
-        if( self.recording == False ):
+        try:
+            self.left_hand_transform = self.tf_buffer.lookup_transform(
+                    self.left_base_frame,
+                    self.left_hand_frame,
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.left_base_frame} to {self.left_hand_frame}: {ex}'
+            )
             return
-        print("in call back !!! ")
-        print("time diff: ", data_time - self.last_data_time )
 
-        self.last_data_time = data_time
+        try:
+            self.right_hand_transform = self.tf_buffer.lookup_transform(
+                    self.right_base_frame,
+                    self.right_hand_frame,
+                    bgr.header.stamp,
+                    timeout=rclpy.duration.Duration(seconds=0.01)
+                )
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.right_base_frame} to {self.right_hand_frame}: {ex}'
+            )
+            return
+        
+        left_hand = transform_to_numpy( self.left_hand_transform )
+        right_hand = transform_to_numpy( self.right_hand_transform )
+        
+        left_pos = np.array(left_hand_joints.position)
+        left_fwdkin_7D = get_7D_transform( FwdKin(left_pos[0:6]) )
 
-        current_state = {}
-        current_state["timestamp"] = data_time
+        right_pos = np.array(right_hand_joints.position)
+        right_fwdkin_7D = get_7D_transform( FwdKin(right_pos[0:6]) )
 
-        # start = time.time()
+        left_error = left_hand - left_fwdkin_7D
+        right_error = right_hand - right_fwdkin_7D
 
-        head_bgr = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
-        head_rgb = head_bgr[...,::-1].copy()
-        head_depth = np.array(self.br.imgmsg_to_cv2(depth, desired_encoding="mono16"))
-        head_resized_rgb, head_resized_depth = transfer_camera_param(head_rgb, head_depth, self.head_cam_intrinsic_np, self.resized_intrinsic_o3d.intrinsic_matrix, self.resized_image_size )
-        current_state["head_rgb"] = head_resized_rgb
-        current_state["head_depth"] = head_resized_depth
+        if( np.linalg.norm(left_error[0:3]) > 0.0015 ):
+            print("left trans error too large:  ", np.linalg.norm(left_error[0:3]))         
+        if( np.linalg.norm(left_error[3:7]) > 0.002 ):
+            print("left rot error too large: ", np.linalg.norm(left_error[3:7]) )        
 
-        left_rgb = np.array(self.br.imgmsg_to_cv2(left_rgb))[:,:,:3]
-        left_depth = np.array(self.br.imgmsg_to_cv2(left_depth, desired_encoding="16UC1"))
-        left_resized_rgb, left_resized_depth = transfer_camera_param(left_rgb, left_depth, self.left_cam_intrinsic_np, self.resized_intrinsic_o3d.intrinsic_matrix, self.resized_image_size )
-        current_state["left_rgb"] = left_resized_rgb
-        current_state["left_depth"] = left_resized_depth
+        if( np.linalg.norm(right_error[0:3]) > 0.0015 ):
+            print("right trans error too large ", np.linalg.norm(left_error[0:3]))     
+        if( np.linalg.norm(right_error[3:7]) > 0.002 ):
+            print("right rot error too large ", np.linalg.norm(left_error[3:7]))  
 
-        right_rgb = np.array(self.br.imgmsg_to_cv2(right_rgb))[:,:,:3]
-        right_depth = np.array(self.br.imgmsg_to_cv2(right_depth, desired_encoding="16UC1"))
-        right_resized_rgb, right_resized_depth = transfer_camera_param(right_rgb, left_depth, self.right_cam_intrinsic_np, self.resized_intrinsic_o3d.intrinsic_matrix, self.resized_image_size )
-        current_state["right_rgb"] = right_resized_rgb
-        current_state["right_depth"] = right_resized_depth
-
-        # save_np_image(head_resized_rgb, "head.jpg")
-        # save_np_image(left_resized_rgb, "left.jpg")
-        # save_np_image(right_resized_rgb, "right.jpg")
-        # end = time.time()
-        # print("end - start: ", end - start)
-
-        # save_np_image(current_state["head_rgb"], file_name = "head.jpg")
-        # save_np_image(current_state["left_rgb"], file_name = "left.jpg")
-        # save_np_image(current_state["right_rgb"] , file_name = "right.jpg")
-        print("h depth min:", np.min(current_state["head_depth"]))
-        print("h depth max:", np.max(current_state["head_depth"]))
-        print("l depth min:", np.min(current_state["left_depth"]))
-        print("l depth max:", np.max(current_state["left_depth"]))
-        # print("depth mid:", current_state["depth"][540, 920] )
-
-        current_state["left_pos"] = np.array(left_hand_joints.position)
-        current_state["left_vel"] = np.array(left_hand_joints.velocity) 
-        current_state["right_pos"] = np.array(right_hand_joints.position) 
-        current_state["right_vel"] = np.array(right_hand_joints.velocity)
-
-        current_state["left_controller_pos"] = np.array(left_controller_joints.position)  
-        current_state["right_controller_pos"] = np.array(right_controller_joints.position)
-
-        # current_state["lh_grippers"] = np.array(lh_grippers) 
-        # current_state["rh_grippers"] = np.array(rh_grippers) 
-
-        print("added a point")
-        self.current_stack.append(current_state)
-
-        if(self.add_keypose):
-            self.current_keypose_stack.append(current_state)
-            self.add_keypose = False
-
-        if( len(self.current_stack) > 1000):
-            self.current_stack.clear()
-            self.current_keypose_stack.clear()
+        # print("right trans error: ", np.linalg.norm(right_error[0:3]) )
+        # print("right orient error: ", np.linalg.norm(right_error[3:7]) )
 
     def save_data(self):
         now = time.time()
@@ -309,8 +275,8 @@ class DataCollector(Node):
         print("saved ", len(self.current_keypose_stack) , "data !!!")
         print("saved ", len(self.current_keypose_stack) , "data !!!")
         print("saved ", len(self.current_keypose_stack) , "data !!!")
-        np.save( str(now) + "_trajectory", self.current_stack)
-        np.save( str(now) + "_keypose", self.current_keypose_stack)
+        np.save( str(now), self.current_stack)
+        np.save( str(now)+"_keypose", self.current_keypose_stack)
 
     def clean_data(self):
         self.current_stack.clear()
@@ -361,7 +327,6 @@ class DataCollector(Node):
         if( (start_recording_pressed == True) and (self.start_recording_pressed_last == False) ):
             if( self.recording == False ):
                 self.recording = True
-                self.add_keypose = True
                 self.get_logger().info('start recording!!!')
                 # self.get_logger().info('start recording!!!')
             else:

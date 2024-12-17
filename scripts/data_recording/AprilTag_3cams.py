@@ -37,7 +37,7 @@ from pupil_apriltags import Detector
 from nav_msgs.msg import Odometry
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
-import PIL.Image as PIL_Image
+
 aprilTag_R = np.array([
     [1.,0.,0.],
     [0.,-1.,0.],
@@ -55,7 +55,7 @@ class DataCollector(Node):
         self.left_base_frame = "follower_left/base_link"
         self.right_base_frame = "follower_right/base_link"
 
-        self.base_frame = "follower_right/base_link"
+        self.base_frame = "follower_left/base_link"
         self.tag_frame = "apriltag"
 
         self.last_data_time = time.time()
@@ -82,7 +82,6 @@ class DataCollector(Node):
         self.B_button = 1
         self.X_button = 2
         self.Y_button = 3
-
 
         # states
         self.recording = False
@@ -126,13 +125,7 @@ class DataCollector(Node):
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        self.bgr_sub = self.create_subscription(Image, "/camera_1/left_image", self.BgrCallback,1)
-        # self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
-        # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
-        
-        # self.time_sync = ApproximateTimeSynchronizer([self.rgb_sub, self.depth_sub],
-                                                    #  queue_size, max_delay)
-        # self.time_sync.registerCallback(self.SyncCallback)
+        self.rgb_sub = self.create_subscription(Image, "/zed/zed_node/left/image_rect_color", self.RgbCallback,1)
 
         timer_period = 0.01 #100hz
         self.timer = self.create_timer(timer_period, self.publish_tf)
@@ -143,7 +136,7 @@ class DataCollector(Node):
         # # Read message content and assign it to
         # # corresponding tf variables
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'follower_right/gripper_link'
+        t.header.frame_id = 'follower_left/gripper_link'
         t.child_frame_id = "apriltag"
 
         t.transform.translation.x = 0.0171
@@ -158,19 +151,7 @@ class DataCollector(Node):
         # # Send the transformation
         self.tf_broadcaster.sendTransform(t)
     
-    def BgrCallback(self, bgr):
-        try:
-            self.hand_transform = self.tf_buffer.lookup_transform(
-                    self.base_frame,
-                    self.tag_frame,
-                    bgr.header.stamp
-            )
-        
-        except TransformException as ex:
-            # self.get_logger().info(
-            #     f'Could not transform {self.base_frame} to {self.tag_frame}: {ex}'
-            # )
-            return
+    def RgbCallback(self, rgb):
 
         data_time = time.time()
         if(data_time - self.last_data_time < 0.5):
@@ -187,11 +168,10 @@ class DataCollector(Node):
         qz = self.hand_transform.transform.rotation.z
         qw = self.hand_transform.transform.rotation.w
 
-        cv_image = self.br.imgmsg_to_cv2(bgr, desired_encoding="rgb8")
+        cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         #print("image size: ", gray_image.shape)
-        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.07) 
-        # print("result: ", result)
+        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.06) 
         if result: 
             # print("*****************************************************************************************")
             # print(result)
@@ -251,25 +231,20 @@ class DataCollector(Node):
                         point.x, point.y, point.z,
                         tag_odom_quat[0], tag_odom_quat[1], tag_odom_quat[2], tag_odom_quat[3]
                     ])
-                    #current_state['bgr'] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
-                    
-                    
 
                     if( self.recording == True ):
                         self.current_stack.append(current_state)
                         self.last_data_time = data_time
                         self.recording = False
-                        # im = PIL_Image.fromarray(current_state['bgr'][...,::-1].copy())
-                        # im.save("example.jpeg")
-                        self.get_logger().info("added data!!!!!!!!")
-                        self.get_logger().info("added data!!!!!!!!")
-                        self.get_logger().info("added data!!!!!!!!")
+                        print("added data!!!!!!!!")
+                        print("added data!!!!!!!!")
+                        print("added data!!!!!!!!")   
 
     def save_data(self):
         now = time.time()
-        self.get_logger().info("collected {} data".format( len(self.current_stack) ))
-        # self.get_logger().info("collected ", len(self.current_stack), " pairs of data")
-        # self.get_logger().info("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
         np.save( str(now), self.current_stack)
     
     def clean_data(self):
@@ -311,7 +286,7 @@ class DataCollector(Node):
         # print("right hand: ", self.right_hand_transform)
 
     def joyCallback(self, msg):
-        # print("in joy callback")
+
         start_recording_pressed = msg.buttons[self.Y_button]
         success_stop_pressed = msg.buttons[self.A_button]
         failure_stop_pressed = msg.buttons[self.B_button]

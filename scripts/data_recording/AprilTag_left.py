@@ -189,7 +189,7 @@ class DataCollector(Node):
         cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         #print("image size: ", gray_image.shape)
-        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.06) 
+        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.07) 
         if result: 
             # print("*****************************************************************************************")
             # print(result)

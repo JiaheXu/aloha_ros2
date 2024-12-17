@@ -37,7 +37,7 @@ from pupil_apriltags import Detector
 from nav_msgs.msg import Odometry
 from numpy.linalg import inv
 from scipy.spatial.transform import Rotation
-import PIL.Image as PIL_Image
+
 aprilTag_R = np.array([
     [1.,0.,0.],
     [0.,-1.,0.],
@@ -55,7 +55,7 @@ class DataCollector(Node):
         self.left_base_frame = "follower_left/base_link"
         self.right_base_frame = "follower_right/base_link"
 
-        self.base_frame = "follower_right/base_link"
+        self.base_frame = "follower_left/base_link"
         self.tag_frame = "apriltag"
 
         self.last_data_time = time.time()
@@ -83,7 +83,6 @@ class DataCollector(Node):
         self.X_button = 2
         self.Y_button = 3
 
-
         # states
         self.recording = False
 
@@ -103,10 +102,23 @@ class DataCollector(Node):
             debug=0
         )
         # Camera Instrinsics used for Undistorting the Fisheye Images
+
+
         self.DIM=(1080, 1920)
         self.K=np.array([[734.1779174804688, 0., 993.6226806640625], [0. ,734.1779174804688,  551.8895874023438], [0.0, 0.0, 1.0]])
         self.D=np.array([0.0, 0.0, 0.0, 0.0])
+        self.rgb_sub = self.create_subscription(Image, "/camera_1/left_image", self.RgbCallback,1)
 
+
+        # self.DIM=(480, 848)
+        # self.K=np.array([[433.7384948730469, 0., 421.96142578125], [0.,433.276611328125,239.41310119628906], [0.0, 0.0, 1.0]])
+        # self.D=np.array([-0.056284792721271515 ,0.06360338628292084, -0.0006215605535544455, 0.0003510362876113504, -0.021346338093280792])
+        # self.rgb_sub = self.create_subscription(Image, "/cam1/cam1/color/image_rect_raw", self.RgbCallback,1)        
+
+        # self.DIM=(480, 848)
+        # self.K=np.array([[431.01397705078125, 0., 421.2543640136719], [0., 430.5847473144531, 235.44593811035156], [0.0, 0.0, 1.0]])
+        # self.D=np.array([-0.054329656064510345 ,0.05579347535967827, -0.0005486568552441895, 0.0011518055107444525, -0.017961639910936356])
+        # self.rgb_sub = self.create_subscription(Image, "/cam2/cam2/color/image_rect_raw", self.RgbCallback,1)   
 
         self.odom=Odometry()
         self.tag_odom_pub = self.create_publisher(Odometry, "AprilTagOdom", 1)
@@ -124,9 +136,9 @@ class DataCollector(Node):
         queue_size = 10
         max_delay = 0.01 #10ms
 
-        self.tf_broadcaster = TransformBroadcaster(self)
+        # self.tf_broadcaster = TransformBroadcaster(self)
 
-        self.bgr_sub = self.create_subscription(Image, "/camera_1/left_image", self.BgrCallback,1)
+
         # self.rgb_sub = Subscriber(self, Image, "/camera_1/left_image")
         # self.depth_sub = Subscriber(self, Image, "/camera_1/depth")
         
@@ -134,49 +146,15 @@ class DataCollector(Node):
                                                     #  queue_size, max_delay)
         # self.time_sync.registerCallback(self.SyncCallback)
 
-        timer_period = 0.01 #100hz
-        self.timer = self.create_timer(timer_period, self.publish_tf)
-    
-    def publish_tf(self):
-        t = TransformStamped()
+    def RgbCallback(self, rgb):
+        print("in call backs")
 
-        # # Read message content and assign it to
-        # # corresponding tf variables
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'follower_right/gripper_link'
-        t.child_frame_id = "apriltag"
-
-        t.transform.translation.x = 0.0171
-        t.transform.translation.y = 0.0
-        t.transform.translation.z = 0.03935
-
-        t.transform.rotation.x = 0.0
-        t.transform.rotation.y = 0.0
-        t.transform.rotation.z = 0.0
-        t.transform.rotation.w = 1.0
-
-        # # Send the transformation
-        self.tf_broadcaster.sendTransform(t)
-    
-    def BgrCallback(self, bgr):
-        try:
-            self.hand_transform = self.tf_buffer.lookup_transform(
-                    self.base_frame,
-                    self.tag_frame,
-                    bgr.header.stamp
-            )
-        
-        except TransformException as ex:
-            # self.get_logger().info(
-            #     f'Could not transform {self.base_frame} to {self.tag_frame}: {ex}'
-            # )
-            return
 
         data_time = time.time()
         if(data_time - self.last_data_time < 0.5):
             return
 
-        print("in call backs")
+
         # print("base frame: ", self.hand_transform)
         x = self.hand_transform.transform.translation.x
         y = self.hand_transform.transform.translation.y
@@ -187,89 +165,86 @@ class DataCollector(Node):
         qz = self.hand_transform.transform.rotation.z
         qw = self.hand_transform.transform.rotation.w
 
-        cv_image = self.br.imgmsg_to_cv2(bgr, desired_encoding="rgb8")
+        cv_image = self.br.imgmsg_to_cv2(rgb, desired_encoding="rgb8")
         gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         #print("image size: ", gray_image.shape)
-        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.07) 
-        # print("result: ", result)
+        result = self.detector.detect(gray_image, True, camera_params=(self.K[0][0], self.K[1][1], self.K[0][2], self.K[1][2]),tag_size = 0.1457) 
         if result: 
             # print("*****************************************************************************************")
-            # print(result)
+            print(result)
             for tag in result: 
-                if(tag.tag_id==0):  
-                    timestamp = self.get_clock().now().to_msg()
-                    
-                    
+                # if(tag.tag_id==0):  
+                timestamp = self.get_clock().now().to_msg()
+                original_estimated_rot = tag.pose_R 
+                original_estimated_trans = tag.pose_t
+                original_estimated_rot =   tag.pose_R @ aprilTag_R
+                rot = Rotation.from_matrix(original_estimated_rot)
+                tag_odom_quat = rot.as_quat()
 
-                    original_estimated_rot = tag.pose_R 
-                    original_estimated_trans = tag.pose_t
-                    original_estimated_rot =   tag.pose_R @ aprilTag_R
-                    rot = Rotation.from_matrix(original_estimated_rot)
-                    tag_odom_quat = rot.as_quat()
+                point = Point()
+                point.x = float(original_estimated_trans[0])
+                point.y = float(original_estimated_trans[1])
+                point.z = float(original_estimated_trans[2])
+                self.odom.pose.pose.position = point
+                
+                self.odom.pose.pose.orientation.x=tag_odom_quat[0]
+                self.odom.pose.pose.orientation.y=tag_odom_quat[1]
+                self.odom.pose.pose.orientation.z=tag_odom_quat[2]
+                self.odom.pose.pose.orientation.w=tag_odom_quat[3]
+                
+                self.odom.header.stamp=timestamp
+                self.odom.header.frame_id="map"
+                self.tag_odom_pub.publish(self.odom)
 
-                    point = Point()
-                    point.x = float(original_estimated_trans[0])
-                    point.y = float(original_estimated_trans[1])
-                    point.z = float(original_estimated_trans[2])
-                    self.odom.pose.pose.position = point
-                    
-                    self.odom.pose.pose.orientation.x=tag_odom_quat[0]
-                    self.odom.pose.pose.orientation.y=tag_odom_quat[1]
-                    self.odom.pose.pose.orientation.z=tag_odom_quat[2]
-                    self.odom.pose.pose.orientation.w=tag_odom_quat[3]
-                    
-                    self.odom.header.stamp=timestamp
-                    self.odom.header.frame_id="map"
-                    self.tag_odom_pub.publish(self.odom)
+                
+                global_cam_rot = original_estimated_rot.transpose()
+                global_cam_trans = -1.0*global_cam_rot@original_estimated_trans
+                # print("trans1:")
+                # print("trans: ", point.x, point.y, point.z)
+                # print("rot (x y z w): \n", self.odom.pose.pose.orientation)
 
-                    
-                    global_cam_rot = original_estimated_rot.transpose()
-                    global_cam_trans = -1.0*global_cam_rot@original_estimated_trans
+                rot = Rotation.from_matrix(global_cam_rot)
+                odom_quat = rot.as_quat()
+                self.cam_odom.pose.pose.orientation.x=odom_quat[0]
+                self.cam_odom.pose.pose.orientation.y=odom_quat[1]
+                self.cam_odom.pose.pose.orientation.z=odom_quat[2]
+                self.cam_odom.pose.pose.orientation.w=odom_quat[3]
+                
+                point2 = Point()
+                point2.x = float(global_cam_trans[0])
+                point2.y = float(global_cam_trans[1])
+                point2.z = float(global_cam_trans[2])
+                self.cam_odom.pose.pose.position = point2
+                self.cam_odom.header.stamp=timestamp
+                self.cam_odom.header.frame_id="map"
+                self.global_cam_pub.publish(self.cam_odom)
+                print("trans2:")
+                print(point2.x,", " ,point2.y , ", ", point2.z, ", ", 
+                self.cam_odom.pose.pose.orientation.x, ", ",
+                self.cam_odom.pose.pose.orientation.y, ", ",
+                self.cam_odom.pose.pose.orientation.z, ", ",
+                self.cam_odom.pose.pose.orientation.w, ", ",)
 
-                    # print("trans: ", point.x, point.y, point.z)
-                    # print("rot (x y z w): \n", self.odom.pose.pose.orientation)
+                current_state = {}
+                current_state["base_tag"] = np.array([x, y, z, qx, qy, qz, qw])
+                current_state["camera_tag"] = np.array([
+                    point.x, point.y, point.z,
+                    tag_odom_quat[0], tag_odom_quat[1], tag_odom_quat[2], tag_odom_quat[3]
+                ])
 
-                    rot = Rotation.from_matrix(global_cam_rot)
-                    odom_quat = rot.as_quat()
-                    self.cam_odom.pose.pose.orientation.x=odom_quat[0]
-                    self.cam_odom.pose.pose.orientation.y=odom_quat[1]
-                    self.cam_odom.pose.pose.orientation.z=odom_quat[2]
-                    self.cam_odom.pose.pose.orientation.w=odom_quat[3]
-                    
-                    point2 = Point()
-                    point2.x = float(global_cam_trans[0])
-                    point2.y = float(global_cam_trans[1])
-                    point2.z = float(global_cam_trans[2])
-                    self.cam_odom.pose.pose.position = point2
-                    self.cam_odom.header.stamp=timestamp
-                    self.cam_odom.header.frame_id="map"
-                    self.global_cam_pub.publish(self.cam_odom)
-
-                    current_state = {}
-                    current_state["base_tag"] = np.array([x, y, z, qx, qy, qz, qw])
-                    current_state["camera_tag"] = np.array([
-                        point.x, point.y, point.z,
-                        tag_odom_quat[0], tag_odom_quat[1], tag_odom_quat[2], tag_odom_quat[3]
-                    ])
-                    #current_state['bgr'] = np.array(self.br.imgmsg_to_cv2(bgr))[:,:,:3]
-                    
-                    
-
-                    if( self.recording == True ):
-                        self.current_stack.append(current_state)
-                        self.last_data_time = data_time
-                        self.recording = False
-                        # im = PIL_Image.fromarray(current_state['bgr'][...,::-1].copy())
-                        # im.save("example.jpeg")
-                        self.get_logger().info("added data!!!!!!!!")
-                        self.get_logger().info("added data!!!!!!!!")
-                        self.get_logger().info("added data!!!!!!!!")
+                if( self.recording == True ):
+                    self.current_stack.append(current_state)
+                    self.last_data_time = data_time
+                    self.recording = False
+                    print("added data!!!!!!!!")
+                    print("added data!!!!!!!!")
+                    print("added data!!!!!!!!")   
 
     def save_data(self):
         now = time.time()
-        self.get_logger().info("collected {} data".format( len(self.current_stack) ))
-        # self.get_logger().info("collected ", len(self.current_stack), " pairs of data")
-        # self.get_logger().info("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
+        print("collected ", len(self.current_stack), " pairs of data")
         np.save( str(now), self.current_stack)
     
     def clean_data(self):
@@ -311,7 +286,7 @@ class DataCollector(Node):
         # print("right hand: ", self.right_hand_transform)
 
     def joyCallback(self, msg):
-        # print("in joy callback")
+
         start_recording_pressed = msg.buttons[self.Y_button]
         success_stop_pressed = msg.buttons[self.A_button]
         failure_stop_pressed = msg.buttons[self.B_button]

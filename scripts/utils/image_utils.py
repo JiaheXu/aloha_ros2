@@ -87,7 +87,27 @@ def get_all_valid_depth( depth , xyz):
                         xyz[x-1][y] = xyz[x][y]
     return depth, xyz
 
-def transfer_camera_param( bgr, depth, intrinsic_np, original_img_size, resized_intrinsic_np, resized_img_size):
+def transfer_camera_param( rgb, depth, intrinsic_np, resized_intrinsic_np, resized_img_size):
+    
+    cx = intrinsic_np[0,2]
+    cy = intrinsic_np[1,2]
+
+    width = resized_img_size[0] * intrinsic_np[0,0] / resized_intrinsic_np[0,0]
+    height = resized_img_size[0] * intrinsic_np[1,1] / resized_intrinsic_np[1,1]
+    
+    half_width = int( width / 2.0 )
+    half_height = int( height / 2.0 )
+
+    cropped_rgb = rgb[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width), :]
+    # cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+    processed_rgb = cv2.resize(cropped_rgb, resized_img_size)
+
+    cropped_depth = depth[round(cy-half_height) : round(cy + half_height), round(cx - half_width) : round(cx + half_width)]
+    processed_depth = cv2.resize(cropped_depth, resized_img_size, interpolation =cv2.INTER_NEAREST)
+
+    return processed_rgb, processed_depth
+
+def transfer_bgr_camera_param( bgr, depth, intrinsic_np, resized_intrinsic_np, resized_img_size):
     
     cx = intrinsic_np[0,2]
     cy = intrinsic_np[1,2]
