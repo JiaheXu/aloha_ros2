@@ -72,24 +72,19 @@ def process_observation( rgb, depth, cam_intrinsic_o3d, cam_extrinsic, bound_box
         print(" x y z has invalid point !!!!!")
         print(" x y z has invalid point !!!!!")
         raise
+
     resized_rgb = np.transpose(filtered_rgb, (2, 0, 1) ).astype(float)
     resized_rgb = resized_rgb / 255.0
     resized_xyz = np.transpose(filtered_xyz, (2, 0, 1) ).astype(float)
-
-    # resized_rgb = np.transpose(cropped_rgb, (2, 0, 1) ).astype(float)
-    # resized_rgb = resized_rgb / 255.0
-    # resized_xyz = np.transpose(cropped_xyz, (2, 0, 1) ).astype(float)
     return resized_rgb, resized_xyz, pcd
-
 # process_episode(data, world_2_head, bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias)
-def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, hand_bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_ee_2_left_cam, right_ee_2_right_cam, left_gripper_threshold= 0.4, right_gripper_threshold = 0.4, debug = False):
+def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, hand_bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_ee_2_left_cam, right_ee_2_right_cam):
 
     episode = []
     frame_ids = []
     obs_tensors = []
     action_tensor =  []
-    # camera_dicts = [ {'front': (0, 0), 'left_wrist': (0, 0), 'right_wrist': (0, 0) } ]
-    camera_dicts = [ {'front': (0, 0)} ]
+    camera_dicts = [ {'front': (0, 0), 'left_wrist': (0, 0), 'right_wrist': (0, 0) } ]
     gripper_tensor = []
     trajectories_tensor = []
 
@@ -114,7 +109,7 @@ def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, han
 
         left.append(left_transform)
 
-        if(left_gripper_joint < left_gripper_threshold):
+        if(left_gripper_joint < 0.5):
             left_openess = 0
         else:
             left_openess = 1        
@@ -131,19 +126,17 @@ def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, han
 
         right.append(right_transform)
 
-        if(right_gripper_joint < right_gripper_threshold):
+        if(right_gripper_joint < 0.5):
             right_openess = 0
         else:
             right_openess = 1
-        print("right_gripper_threshold: ", right_gripper_threshold)
-        print("right_gripper_joint: ", right_gripper_joint)
         right_openess_real.append(right_openess)
         right_trajectory.append(np.array( [right_transform[0][3], right_transform[1][3], right_transform[2][3], right_quat[0], right_quat[1], right_quat[2], right_quat[3], right_openess] ))  
 
     left_openess_real = np.array(left_openess_real)
     right_openess_real = np.array(right_openess_real)
-    print("left_openess_real: ", left_openess_real)
-    print("right_openess_real: ", right_openess_real)
+    # print("left_openess_real: ", left_openess_real)
+    # print("right_openess_real: ", right_openess_real)
     # use absolute pose
     left_trajectories = np.array(left_trajectory)
     # print("left gripper: ", left_trajectories[:, 7])
@@ -170,41 +163,41 @@ def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, han
         # print("head_rgb: ", head_rgb.shape)
         # print("head_depth: ", head_depth.shape)
 
-        resized_head_rgb, resized_head_xyz, head_pcd = process_observation( head_rgb, head_depth, cam_intrinsic_o3d, cam_extrinsic, head_bound_box, return_pcd=True)
+        resized_head_rgb, resized_head_xyz, head_pcd = process_observation( head_rgb, head_depth, cam_intrinsic_o3d, cam_extrinsic, head_bound_box)
+        visualize_pcd(head_pcd, [ [left[idx]], [right[idx]] ] , drawlines = True)
         
-        if( debug ):        
-            print("idx: ", idx)
-            print("left: ", left_openess_real[idx])
-            print("right: ", right_openess_real[idx])
-            visualize_pcd(head_pcd, [ [left[idx]], [right[idx]] ] , drawlines = False)
         
         if(first_frame_pcd is None):
             first_frame_pcd = head_pcd
         # visualize_pcds( [head_pcd] )
 
-        # left_rgb = point['left_rgb']
-        # left_depth = point['left_depth']
-        # left_transform = FwdKin(point['left_pos'][0:6] )
-        # left_extrinsic = left_bias @ left_transform @ left_ee_2_left_cam
-        # resized_left_rgb, resized_left_xyz, left_pcd = process_observation( left_rgb, left_depth, cam_intrinsic_o3d, left_extrinsic, head_bound_box, return_pcd=False)
+        left_rgb = point['left_rgb']
+        left_depth = point['left_depth']
+        # print("left_rgb: ", head_rgb.shape)
+        # print("left_depth: ", head_depth.shape)
+        left_transform = FwdKin(point['left_pos'][0:6] )
+        left_extrinsic = left_bias @ left_transform @ left_ee_2_left_cam
+        resized_left_rgb, resized_left_xyz, left_pcd = process_observation( left_rgb, left_depth, cam_intrinsic_o3d, left_extrinsic, head_bound_box)
 
-        # right_rgb = point['right_rgb']
-        # right_depth = point['right_depth']
-        # right_transform = FwdKin(point['right_pos'][0:6] )
-        # right_extrinsic = right_bias @ right_transform @ right_ee_2_right_cam
-        # resized_right_rgb, resized_right_xyz, right_pcd = process_observation( right_rgb, right_depth, cam_intrinsic_o3d, right_extrinsic, head_bound_box, return_pcd=False)
+        right_rgb = point['right_rgb']
+        right_depth = point['right_depth']
+        # print("right_rgb: ", right_rgb.shape)
+        # print("right_depth: ", right_depth.shape)
+        right_transform = FwdKin(point['right_pos'][0:6] )
+        right_extrinsic = right_bias @ right_transform @ right_ee_2_right_cam
+        resized_right_rgb, resized_right_xyz, right_pcd = process_observation( right_rgb, right_depth, cam_intrinsic_o3d, right_extrinsic, head_bound_box)
 
         # visualize_pcds( [head_pcd, left_pcd, right_pcd] )
-        n_cam = n_cam = len(camera_dicts)
+        n_cam = 3
         obs = np.zeros( (n_cam, 2, 3, 256, 256) )
         obs[0][0] = resized_head_rgb
         obs[0][1] = resized_head_xyz
 
-        # obs[1][0] = resized_left_rgb
-        # obs[1][1] = resized_left_xyz
+        obs[1][0] = resized_left_rgb
+        obs[1][1] = resized_left_xyz
 
-        # obs[2][0] = resized_right_rgb
-        # obs[2][1] = resized_right_xyz
+        obs[2][0] = resized_right_rgb
+        obs[2][1] = resized_right_xyz
 
         obs = obs.astype(float)
         obs_tensors.append( torch.from_numpy(obs) )
@@ -215,10 +208,10 @@ def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, han
     episode.append(frame_ids[:-1]) # 0
     # print("obs_tensors: ", len(obs_tensors), " ", obs_tensors[0].shape)
     episode.append(obs_tensors ) # 1
-    episode.append([trajectories_tensor[i] for i in frame_ids[1:]]) # 2, action
-    episode.append(camera_dicts) # 3
-    episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 4 gripper tensor
-    episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 5, traj
+    # episode.append([trajectories_tensor[i] for i in frame_ids[1:]]) # 2, action
+    # episode.append(camera_dicts) # 3
+    # episode.append([trajectories_tensor[i] for i in frame_ids[:-1]]) # 4 gripper tensor
+    # episode.append([trajectories_tensor[i:j+1] for i, j in zip(frame_ids[:-1], frame_ids[1:])]) # 5, traj
     # visualize_pcd(first_frame_pcd, [left, right] , drawlines = True)
     return episode
 
@@ -230,29 +223,14 @@ def process_episode(data, cam_extrinsic, cam_intrinsic_o3d,  head_bound_box, han
     # [gripper_tensors],  # wrt frame_ids, (2, 8) ,curretn state
     # [trajectories]  # wrt frame_ids, (N_i, 2, 8)
     # List of tensors
-def load_txt(task_name):
-    file_name = "/home/jiahe/data/" + task_name + ".txt"
-    idx_list = [] 
-    with open(file_name, 'r') as file:
-        # Read each line in the file
-        for line in file:
-            current_list = [0]
-            numbers = line[:-1].split(" ")
-            # print("numbers: ", numbers)
-            for number in numbers:
-                current_list.append( int(number) )
-            idx_list.append( current_list )
-    # idx_np = np.array( idx_list )
-    # print("idx_np: ", idx_np.shape)
-    return idx_list
 
 def main():
 
     parser = argparse.ArgumentParser(description="extract interested object and traj from rosbag")
     parser.add_argument("-d", "--data_index", default=1,  help="Input data index.")    
-    parser.add_argument("-t", "--task", default="close_marker",  help="Input task name.")
+    parser.add_argument("-t", "--task", default="test",  help="Input task name.")
     parser.add_argument("-p", "--project", default="aloha",  help="project name.") 
-    parser.add_argument("-debug", "--debug", default=0,  help="project name.")     
+    
     args = parser.parse_args()
     # bag_dir = "./segmented_" + args.task + "/" + str(args.data_index) + ".bag"
     # traj_dir = "./segmented_" + args.task + "/" + str(args.data_index) + ".npy"
@@ -286,37 +264,20 @@ def main():
     if ( os.path.isdir(processed_data_dir) == False ):
         os.mkdir(processed_data_dir)
 
-    dir_path = "/home/jiahe/data/raw_demo/" + task_name + '/traj/'
+    dir_path = "/home/jiahe/data/raw_demo/" + task_name + '/'
 
     save_data_dir = processed_data_dir + '/' + task_name + "+0"
     if ( os.path.isdir(save_data_dir) == False ):
         os.mkdir(save_data_dir)
         
    
-    file =  str(args.data_index) + ".npy"
+    file =  str(args.data_index) + "_keypose.npy"
     print("processing: ", dir_path+file)
     data = np.load(dir_path+file, allow_pickle = True)
+
+
     
-    idx_list = load_txt( task_name )
-    index = idx_list[ int(args.data_index) - 1]
-
-    kp_data = data[index]
-
-    right_gripper_threshold = 0.4
-    if(task_name == "insert_battery"):
-        # print("!!!!!!!!!!!!!!")
-        if(int(args.data_index) == 13):
-            right_gripper_threshold = 0.1
-        if(int(args.data_index) == 21):
-            right_gripper_threshold = 0.3
-        if(int(args.data_index) == 23):
-            right_gripper_threshold = 0.1
-        if(int( args.data_index) == 24):
-            right_gripper_threshold = 0.1
-    episode = process_episode(kp_data, world_2_head, cam_intrinsic_o3d, head_bound_box, hand_bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_ee_2_left_cam, right_ee_2_right_cam, 
-        right_gripper_threshold = right_gripper_threshold,
-        debug = args.debug
-    )
+    episode = process_episode(data, world_2_head, cam_intrinsic_o3d, head_bound_box, hand_bound_box, left_bias, left_tip_bias, right_bias, right_tip_bias, left_ee_2_left_cam, right_ee_2_right_cam)
 
 
     np.save("{}/{}/ep{}".format(processed_data_dir,task_name + "+0",args.data_index), episode)

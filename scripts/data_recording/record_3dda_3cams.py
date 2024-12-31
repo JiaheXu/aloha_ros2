@@ -148,7 +148,7 @@ class DataCollector(Node):
         self.head_cam = load_yaml( "../config/head.yaml" )
         self.head_cam_intrinsic_np = np.array( self.head_cam.get("intrinsic") )
         o3d_data = self.head_cam.get("intrinsic_o3d")[0]
-        print("o3d_data: ", o3d_data)
+        # print("o3d_data: ", o3d_data)
         self.head_cam_intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(o3d_data[0], o3d_data[1], o3d_data[2], o3d_data[3], o3d_data[4], o3d_data[5])
 
         self.left_cam = load_yaml( "../config/left_wrist.yaml" )
@@ -162,15 +162,23 @@ class DataCollector(Node):
         self.right_cam_intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(o3d_data[0], o3d_data[1], o3d_data[2], o3d_data[3], o3d_data[4], o3d_data[5])
 
         self.resized_image_size = (256,256)
+        self.first_frame_image_size = (512, 512)
+        self.first_frame_data = {}
+        
         # self.original_image_size = (1080, 1920) #(h,)
         fxfy = 256.0
+        
         self.resized_intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(256, 256, fxfy, fxfy, 128.0, 128.0)
+
+        self.first_frame_intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(512, 512,   512., 512.,   256., 256.)
+        
         self.resized_intrinsic_np = np.array([
             [fxfy, 0., 128.0],
             [0. ,fxfy,  128.0],
             [0., 0., 1.0]
         ])    
-
+        
+        self.first_frame = True
         queue_size = 1000
         max_delay = 0.05 # 50ms
         self.time_diff = 0.10
@@ -251,6 +259,13 @@ class DataCollector(Node):
         head_resized_rgb, head_resized_depth = transfer_camera_param(head_rgb, head_depth, self.head_cam_intrinsic_np, self.resized_intrinsic_o3d.intrinsic_matrix, self.resized_image_size )
         current_state["head_rgb"] = head_resized_rgb
         current_state["head_depth"] = head_resized_depth
+        if ( self.first_frame == True):
+            self.first_frame = False
+            first_frame_resized_rgb, first_frame_resized_depth = transfer_camera_param(head_rgb, head_depth, self.head_cam_intrinsic_np, self.first_frame_intrinsic_o3d.intrinsic_matrix, self.first_frame_image_size )
+            first_frame_data = {}
+            first_frame_data["rgb"] = first_frame_resized_rgb
+            first_frame_data["depth"] = first_frame_resized_depth
+            self.first_frame_data = first_frame_data
 
         left_rgb = np.array(self.br.imgmsg_to_cv2(left_rgb))[:,:,:3]
         left_depth = np.array(self.br.imgmsg_to_cv2(left_depth, desired_encoding="16UC1"))
@@ -273,10 +288,10 @@ class DataCollector(Node):
         # save_np_image(current_state["head_rgb"], file_name = "head.jpg")
         # save_np_image(current_state["left_rgb"], file_name = "left.jpg")
         # save_np_image(current_state["right_rgb"] , file_name = "right.jpg")
-        print("h depth min:", np.min(current_state["head_depth"]))
-        print("h depth max:", np.max(current_state["head_depth"]))
-        print("l depth min:", np.min(current_state["left_depth"]))
-        print("l depth max:", np.max(current_state["left_depth"]))
+        # print("h depth min:", np.min(current_state["head_depth"]))
+        # print("h depth max:", np.max(current_state["head_depth"]))
+        # print("l depth min:", np.min(current_state["left_depth"]))
+        # print("l depth max:", np.max(current_state["left_depth"]))
         # print("depth mid:", current_state["depth"][540, 920] )
 
         current_state["left_pos"] = np.array(left_hand_joints.position)
@@ -309,8 +324,9 @@ class DataCollector(Node):
         print("saved ", len(self.current_keypose_stack) , "data !!!")
         print("saved ", len(self.current_keypose_stack) , "data !!!")
         print("saved ", len(self.current_keypose_stack) , "data !!!")
-        np.save( str(now) + "_trajectory", self.current_stack)
-        np.save( str(now) + "_keypose", self.current_keypose_stack)
+        np.save( "./first_frame/" + str(now) + "_first_frame", self.first_frame_data)
+        np.save( "./traj/" + str(now) + "_trajectory", self.current_stack)
+        np.save( "./keypose/" + str(now) + "_keypose", self.current_keypose_stack)
 
     def clean_data(self):
         self.current_stack.clear()
@@ -362,6 +378,7 @@ class DataCollector(Node):
             if( self.recording == False ):
                 self.recording = True
                 self.add_keypose = True
+                self.first_frame = True
                 self.get_logger().info('start recording!!!')
                 # self.get_logger().info('start recording!!!')
             else:
